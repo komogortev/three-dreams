@@ -1,0 +1,28 @@
+---
+description: Workspace context for first-game — applies every session
+alwaysApply: true
+---
+
+# first-game — Workspace Context
+
+## Role of This Project
+This is the **Phase 4 game fork** — a standalone app forked from `BASE/pwa-shell`. It hosts the shipping **game loop** (menus, `GameLogicModule`, scenes) while consuming `@base/*` packages from `SHARED/`.
+
+## Ecosystem Topology
+```
+e:/Projects/
+  first-game/            ← THIS repo — Vue 3 PWA + Three.js stack
+  SHARED/packages/       ← @base/* packages (engine-core, threejs-engine, input, audio, …)
+  BASE/pwa-shell/        ← upstream shell template
+  threejs-engine-dev/    ← harness for engine/scene authoring (sibling, not a dependency)
+```
+
+## Code Placement Rules
+- Reusable runtime → `SHARED/packages/` as `@base/*`
+- Game rules, narrative, Pinia game state → this repo (`GameLogicModule`, stores, views)
+- Heavy scene authoring / editor → prefer `threejs-engine-dev`; promote stable pieces to SHARED
+
+## Stack
+Vue 3 · TypeScript strict · Tailwind CSS · Vue Router · Pinia · Vite · Vitest  
+Three.js · `@base/threejs-engine` · `@base/input` · `@base/audio`  
+Modules: `@base/engine-core` mount contract — `ThreeModule` + `mountChild()` for input, audio, game logic
