@@ -1,7 +1,28 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useGameStore } from '@/stores/game'
 
 const router = useRouter()
+const gameStore = useGameStore()
+
+onMounted(() => {
+  void gameStore.refreshCanContinue()
+})
+
+function playNew(): void {
+  gameStore.discardPendingContinue()
+  void router.push('/game')
+}
+
+async function continueGame(): Promise<void> {
+  const ok = await gameStore.loadContinueBootstrap()
+  if (!ok) {
+    await gameStore.refreshCanContinue()
+    return
+  }
+  void router.push('/game')
+}
 </script>
 
 <template>
@@ -15,9 +36,22 @@ const router = useRouter()
       <button
         class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
         type="button"
-        @click="router.push('/game')"
+        @click="playNew"
       >
         Play
+      </button>
+      <button
+        class="w-full px-6 py-3 rounded-xl text-sm font-semibold transition-colors"
+        :class="
+          gameStore.canContinue
+            ? 'bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-900 text-emerald-100'
+            : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+        "
+        type="button"
+        :disabled="!gameStore.canContinue"
+        @click="continueGame"
+      >
+        Continue
       </button>
       <button
         class="w-full px-6 py-3 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white text-sm font-semibold rounded-xl transition-colors"
@@ -27,5 +61,10 @@ const router = useRouter()
         Settings
       </button>
     </div>
+
+    <p class="text-zinc-600 text-[10px] font-mono text-center max-w-xs px-4">
+      Continue needs save data — use <code class="text-zinc-500">saveProgressForContinue</code> or key
+      <code class="text-zinc-500">first-game-save-v1</code> until autosave is added.
+    </p>
   </div>
 </template>

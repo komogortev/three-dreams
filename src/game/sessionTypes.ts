@@ -46,6 +46,13 @@ export interface GameRequestNewRunPayload {
   sceneId?: string
 }
 
+/** Payload for {@link GAME_EVENTS.LOGIC_READY}. */
+export interface GameLogicReadyPayload {
+  moduleId: string
+  runId: string
+  sceneId: string
+}
+
 /** Read-only snapshot for debugging or future Pinia hydration. */
 export interface GameSessionSnapshot {
   phase: GamePhase

@@ -12,6 +12,14 @@
 - **Handles:** `input:action` pause toggle (`playing` ↔ `paused`), `game:request-pause` / `resume` / `new-run` / `retry` / `exit`, `game:report-outcome` → `won` | `lost`.
 - **Menu:** `GameView` emits `game:request-exit` before navigating home.
 
+### Layer 2 status (implemented)
+
+- **Store:** `src/stores/game.ts` — `useGameStore` mirrors `phase`, `runId`, `sceneId`, `lastOutcome`, `logicReady`; `canContinue` from storage; `attachToEventBus` / `detachGameBus` / `resetSessionMirror`.
+- **Continue:** `loadContinueBootstrap` + `pullBootstrapSceneId()` (consumed when constructing `GameLogicModule` in `GameView`); **Play** calls `discardPendingContinue()`.
+- **Persistence helpers:** `saveProgressForContinue(sceneId)`, `clearSavedProgress()`, key `first-game-save-v1` (`GameSaveV1`).
+- **Bus helpers (UI → module):** `requestPause`, `requestResume`, `requestNewRun`, `requestRetry` on the shell `EventBus`.
+- **HUD:** `GameView` shows mirrored `phase` / `scene` / `lastOutcome` for debugging.
+
 ---
 
 ## Goals

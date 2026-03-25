@@ -24,7 +24,7 @@ cd ../first-game && pnpm install && pnpm dev
 
 ## Documentation
 
-- [Game state system — plan](./docs/game-state-system.md) — session runtime (layer 1), bus contract, planned Pinia mirror.
+- [Game state system — plan](./docs/game-state-system.md) — `useGameStore` (layer 2) vs `GameLogicModule` (layer 1), bus contract, save key `first-game-save-v1`.
 
 ## Scripts
 
