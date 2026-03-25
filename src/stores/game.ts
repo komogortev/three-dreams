@@ -47,7 +47,7 @@ export const useGameStore = defineStore('game', () => {
 
   let busDetach: (() => void) | null = null
 
-  /** Minimal save for Continue (manual checkpoints / devtools until autosave lands). */
+  /** Minimal save for Continue (checkpoints, autosave hooks, menu exit). */
   async function saveProgressForContinue(scene: string): Promise<void> {
     const storage = usePlatformAdapter().storage
     const payload: GameSaveV1 = {
@@ -59,6 +59,11 @@ export const useGameStore = defineStore('game', () => {
     canContinue.value = true
   }
 
+  /** Fire-and-forget save using current mirror `sceneId`. */
+  function saveCurrentSessionForContinue(): void {
+    void saveProgressForContinue(sceneId.value.trim() || 'default')
+  }
+
   function applyPhasePayload(p: GamePhaseChangedPayload): void {
     const prevRun = runId.value
     if (p.phase === 'playing' && prevRun !== null && p.runId !== prevRun) {
@@ -68,6 +73,10 @@ export const useGameStore = defineStore('game', () => {
     phase.value = p.phase
     runId.value = p.runId
     sceneId.value = p.sceneId
+
+    if (p.phase === 'playing' && p.previousPhase === 'booting') {
+      void saveProgressForContinue(p.sceneId)
+    }
   }
 
   function applyScenePayload(p: GameSceneChangedPayload): void {
@@ -208,6 +217,7 @@ export const useGameStore = defineStore('game', () => {
     pullBootstrapSceneId,
     discardPendingContinue,
     saveProgressForContinue,
+    saveCurrentSessionForContinue,
     clearSavedProgress,
     requestPause,
     requestResume,

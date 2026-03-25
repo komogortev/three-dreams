@@ -63,8 +63,7 @@ async function continueGame(): Promise<void> {
     </div>
 
     <p class="text-zinc-600 text-[10px] font-mono text-center max-w-xs px-4">
-      Continue needs save data — use <code class="text-zinc-500">saveProgressForContinue</code> or key
-      <code class="text-zinc-500">first-game-save-v1</code> until autosave is added.
+      Continue appears after a session reaches play (autosave) or when you return to the menu from the game.
     </p>
   </div>
 </template>

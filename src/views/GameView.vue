@@ -37,13 +37,15 @@ onMounted(async () => {
 })
 
 onUnmounted(async () => {
+  gameStore.saveCurrentSessionForContinue()
   await engine.unmount()
   gameStore.detachGameBus()
   gameStore.resetSessionMirror()
   shell.setActiveModule(null)
 })
 
-function goToMenu(): void {
+async function goToMenu(): Promise<void> {
+  await gameStore.saveProgressForContinue(gameStore.sceneId.trim() || 'default')
   context.eventBus.emit(GAME_EVENTS.REQUEST_EXIT)
   void router.push('/')
 }

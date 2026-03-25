@@ -16,7 +16,8 @@
 
 - **Store:** `src/stores/game.ts` — `useGameStore` mirrors `phase`, `runId`, `sceneId`, `lastOutcome`, `logicReady`; `canContinue` from storage; `attachToEventBus` / `detachGameBus` / `resetSessionMirror`.
 - **Continue:** `loadContinueBootstrap` + `pullBootstrapSceneId()` (consumed when constructing `GameLogicModule` in `GameView`); **Play** calls `discardPendingContinue()`.
-- **Persistence helpers:** `saveProgressForContinue(sceneId)`, `clearSavedProgress()`, key `first-game-save-v1` (`GameSaveV1`).
+- **Persistence helpers:** `saveProgressForContinue(sceneId)`, `saveCurrentSessionForContinue()`, `clearSavedProgress()`, key `first-game-save-v1` (`GameSaveV1`).
+- **Autosave:** on `game:phase-changed` when `booting` → `playing`; again when leaving `/game` (menu click or unmount) so **Continue** enables without manual devtools calls.
 - **Bus helpers (UI → module):** `requestPause`, `requestResume`, `requestNewRun`, `requestRetry` on the shell `EventBus`.
 - **HUD:** `GameView` shows mirrored `phase` / `scene` / `lastOutcome` for debugging.
 
