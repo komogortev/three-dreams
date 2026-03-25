@@ -22,6 +22,10 @@ cd ../first-game && pnpm install && pnpm dev
 - **Menu** → **Play** mounts the engine stack on `/game`.
 - `GameLogicModule` emits `game:logic-ready` once; add rules and `registerSystem` subscriptions there.
 
+## Documentation
+
+- [Game state system — plan](./docs/game-state-system.md) — phases, Pinia vs `GameLogicModule`, bus contract, persistence.
+
 ## Scripts
 
 | Command        | Description              |
