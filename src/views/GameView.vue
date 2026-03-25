@@ -5,6 +5,7 @@ import { ThreeModule } from '@base/threejs-engine'
 import { InputModule } from '@base/input'
 import { AudioModule } from '@base/audio'
 import { GameLogicModule } from '@/modules/GameLogicModule'
+import { GAME_EVENTS } from '@/game/sessionTypes'
 import { useShellContext } from '@/composables/useShellContext'
 import { useShellStore } from '@/stores/shell'
 
@@ -33,6 +34,11 @@ onUnmounted(async () => {
   await engine.unmount()
   shell.setActiveModule(null)
 })
+
+function goToMenu(): void {
+  context.eventBus.emit(GAME_EVENTS.REQUEST_EXIT)
+  void router.push('/')
+}
 </script>
 
 <template>
@@ -42,7 +48,7 @@ onUnmounted(async () => {
     <button
       class="absolute top-4 left-4 z-10 flex items-center gap-2 px-4 py-2 bg-black/50 hover:bg-black/70 text-white text-xs font-medium rounded-lg backdrop-blur-sm border border-white/10 transition-colors"
       type="button"
-      @click="router.push('/')"
+      @click="goToMenu"
     >
       ← Menu
     </button>

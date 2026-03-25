@@ -24,7 +24,7 @@ cd ../first-game && pnpm install && pnpm dev
 
 ## Documentation
 
-- [Game state system — plan](./docs/game-state-system.md) — phases, Pinia vs `GameLogicModule`, bus contract, persistence.
+- [Game state system — plan](./docs/game-state-system.md) — session runtime (layer 1), bus contract, planned Pinia mirror.
 
 ## Scripts
 

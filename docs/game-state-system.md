@@ -5,6 +5,15 @@
 
 ---
 
+## Layer 1 status (implemented)
+
+- **Code:** `src/game/sessionTypes.ts` (phases, payloads, `GAME_EVENTS`), `src/game/sessionTransitions.ts` (allowed edges), `src/modules/GameLogicModule.ts` (FSM + subscriptions).
+- **Emits:** `game:logic-ready`, `game:phase-changed`, `game:scene-changed`, `game:outcome`.
+- **Handles:** `input:action` pause toggle (`playing` ↔ `paused`), `game:request-pause` / `resume` / `new-run` / `retry` / `exit`, `game:report-outcome` → `won` | `lost`.
+- **Menu:** `GameView` emits `game:request-exit` before navigating home.
+
+---
+
 ## Goals
 
 - **Single source of truth** for “what phase is this play session in?” while `/game` is mounted.
