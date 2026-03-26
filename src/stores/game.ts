@@ -167,7 +167,7 @@ export const useGameStore = defineStore('game', () => {
 
   /**
    * Consume one-shot continue scene id for `new GameLogicModule({ initialSceneId })`.
-   * Call once when `GameView` is created.
+   * Call once when the `/game` play view (`SceneView`) is created.
    */
   function pullBootstrapSceneId(): string | undefined {
     const v = bootstrapSceneId.value
@@ -178,6 +178,15 @@ export const useGameStore = defineStore('game', () => {
   /** User chose New Game / Play — drop a staged Continue payload. */
   function discardPendingContinue(): void {
     bootstrapSceneId.value = null
+  }
+
+  /**
+   * Next `/game` mount loads this scene id (consumed once by {@link pullBootstrapSceneId}).
+   * Use for dev shortcuts (e.g. jump straight to scene 2) without touching save data.
+   */
+  function stageInitialSceneForNextPlay(sceneId: string): void {
+    const id = sceneId.trim()
+    bootstrapSceneId.value = id || null
   }
 
   async function clearSavedProgress(): Promise<void> {
@@ -216,6 +225,7 @@ export const useGameStore = defineStore('game', () => {
     loadContinueBootstrap,
     pullBootstrapSceneId,
     discardPendingContinue,
+    stageInitialSceneForNextPlay,
     saveProgressForContinue,
     saveCurrentSessionForContinue,
     clearSavedProgress,
