@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { getAppBaseUrl } from '@/utils/resolvePublicUrl'
 
 export const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(getAppBaseUrl()),
   routes: [
     {
       path: '/',
@@ -12,6 +13,16 @@ export const router = createRouter({
       path: '/game',
       name: 'game',
       component: () => import('@/views/GameView.vue'),
+    },
+    {
+      path: '/scene',
+      name: 'scene',
+      component: () => import('@/views/SceneView.vue'),
+    },
+    {
+      path: '/editor',
+      name: 'editor',
+      component: () => import('@/views/EditorView.vue'),
     },
     {
       path: '/settings',

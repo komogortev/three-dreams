@@ -54,6 +54,20 @@ async function continueGame(): Promise<void> {
         Continue
       </button>
       <button
+        class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
+        type="button"
+        @click="router.push('/scene')"
+      >
+        Scene (dev)
+      </button>
+      <button
+        class="w-full px-6 py-3 bg-violet-700 hover:bg-violet-600 active:bg-violet-800 text-white text-sm font-semibold rounded-xl transition-colors"
+        type="button"
+        @click="router.push('/editor')"
+      >
+        Scene editor (dev)
+      </button>
+      <button
         class="w-full px-6 py-3 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white text-sm font-semibold rounded-xl transition-colors"
         type="button"
         @click="router.push('/settings')"
