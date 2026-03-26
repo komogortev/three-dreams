@@ -25,7 +25,7 @@ const gameStore = useGameStore()
 const container = ref<HTMLElement>()
 
 const engine = new ThreeModule()
-const inputModule = new InputModule()
+const inputModule = new InputModule(undefined, { enablePointerLook: true })
 const audioModule = new AudioModule()
 
 const initialSceneId = gameStore.pullBootstrapSceneId() ?? 'scene-01'
@@ -34,9 +34,11 @@ const sceneModule = new ThirdPersonSceneModule({
   descriptor: getSceneDescriptor(initialSceneId) ?? scene01,
   cameraMode: 'first-person',
   cameraPreset: 'close-follow',
-  /** Root is feet-aligned after SceneBuilder; ~1.62m places the camera near eye level for modelFitHeight 1.78. */
-  firstPersonEyeOffsetY: 1.62,
+  /** Root is feet-aligned after SceneBuilder; tuned vs Remy 1.78m — slight lift clears neck band at walk. */
+  firstPersonEyeOffsetY: 1.675,
   firstPersonCrouchEyeDrop: 0.32,
+  /** Forward on XZ toward view; extra vs sprint head pitch so eyelids do not clip the near plane. */
+  firstPersonEyePullback: 0.092,
 })
 
 const cameraPresetLabel = ref<ThirdPersonCameraPreset>(sceneModule.getCameraPreset())
@@ -187,7 +189,10 @@ async function goToMenu(): Promise<void> {
           move · Shift sprint · Ctrl crouch · Space jump (buffer)
         </p>
         <p class="text-white/20 text-[10px] tracking-wider text-center">
-          Tab — switch first / third person · [ ] cycle rig (third person only)
+          First person: click canvas to capture mouse · look around · Esc releases
+        </p>
+        <p class="text-white/20 text-[10px] tracking-wider text-center">
+          Tab — first / third person · [ ] cycle rig (third person only)
         </p>
       </div>
     </Transition>

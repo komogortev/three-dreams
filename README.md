@@ -54,6 +54,7 @@ public/scenes/scene-02/
 
 ## Documentation
 
+- [Fork roadmap (Phase 4)](./docs/roadmap.md) — current state, checklist, next gameplay milestone, editor heatmap research note
 - [Game state system](./docs/game-state-system.md) — session phases, event bus, save key `first-game-save-v1`, Continue flow
 
 ## Scripts
