@@ -3,24 +3,45 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ThreeModule } from '@base/threejs-engine'
 import { InputModule } from '@base/input'
+import { AudioModule } from '@base/audio'
 import {
   THIRD_PERSON_CAMERA_PRESET_ORDER,
   type GameplayCameraMode,
   type ThirdPersonCameraPreset,
 } from '@base/camera-three'
-import { ThirdPersonSceneModule } from '@/modules/ThirdPersonSceneModule'
+import { GameplaySceneModule } from '@/modules/GameplaySceneModule'
+import { GameLogicModule } from '@/modules/GameLogicModule'
+import { GAME_EVENTS } from '@/game/sessionTypes'
 import { scene01 } from '@/scenes/scene-01'
+import { getSceneGameplayPolicy } from '@/scenes/gameplayPolicy'
+import { getSceneDescriptor } from '@/scenes/registry'
 import { useShellContext } from '@/composables/useShellContext'
+import { useShellStore } from '@/stores/shell'
+import { useGameStore } from '@/stores/game'
 
 const router = useRouter()
 const context = useShellContext()
+const shell = useShellStore()
+const gameStore = useGameStore()
 const container = ref<HTMLElement>()
 
-const engine      = new ThreeModule()
-const inputModule = new InputModule()
-const sceneModule = new ThirdPersonSceneModule({
-  descriptor: scene01,
+const engine = new ThreeModule()
+const inputModule = new InputModule(undefined, { enablePointerLook: true })
+const audioModule = new AudioModule()
+
+const initialSceneId = gameStore.pullBootstrapSceneId() ?? 'scene-01'
+const gameLogic = new GameLogicModule({ initialSceneId })
+const sceneGameplayPolicy = getSceneGameplayPolicy(initialSceneId)
+const sceneModule = new GameplaySceneModule({
+  descriptor: getSceneDescriptor(initialSceneId) ?? scene01,
+  cameraMode: 'first-person',
   cameraPreset: 'close-follow',
+  /** Root is feet-aligned after SceneBuilder; tuned vs Remy 1.78m — slight lift clears neck band at walk. */
+  firstPersonEyeOffsetY: 1.675,
+  firstPersonCrouchEyeDrop: 0.32,
+  /** Forward on XZ toward view; extra vs sprint head pitch so eyelids do not clip the near plane. */
+  firstPersonEyePullback: 0.092,
+  ...sceneGameplayPolicy,
 })
 
 const cameraPresetLabel = ref<ThirdPersonCameraPreset>(sceneModule.getCameraPreset())
@@ -30,7 +51,9 @@ let presetIndex = Math.max(0, THIRD_PERSON_CAMERA_PRESET_ORDER.indexOf(cameraPre
 
 function cycleCamera(delta: number): void {
   if (sceneModule.getCameraMode() !== 'third-person') return
-  presetIndex = (presetIndex + delta + THIRD_PERSON_CAMERA_PRESET_ORDER.length) % THIRD_PERSON_CAMERA_PRESET_ORDER.length
+  presetIndex =
+    (presetIndex + delta + THIRD_PERSON_CAMERA_PRESET_ORDER.length) %
+    THIRD_PERSON_CAMERA_PRESET_ORDER.length
   const p = THIRD_PERSON_CAMERA_PRESET_ORDER[presetIndex]!
   sceneModule.setCameraPreset(p)
   cameraPresetLabel.value = p
@@ -62,19 +85,22 @@ function onWindowKeyDown(e: KeyboardEvent): void {
   }
 }
 
-/** Hide the WASD hint on first movement or after 4 s. */
 const showHint = ref(true)
 let hintTimer: ReturnType<typeof setTimeout>
 
-/** Hide WebGL + UI flash while Three.js default camera (0,0,0) runs before the scene module finishes async build. */
 const worldReady = ref(false)
 
 onMounted(async () => {
   if (!container.value) return
 
+  gameStore.attachToEventBus(context.eventBus)
+  shell.setActiveModule(engine.id)
+
   worldReady.value = false
   await engine.mount(container.value, context)
   await engine.mountChild('input', inputModule)
+  await engine.mountChild('audio', audioModule)
+  await engine.mountChild('game-logic', gameLogic)
   await engine.mountChild('scene', sceneModule)
   worldReady.value = true
 
@@ -89,7 +115,9 @@ onMounted(async () => {
     }
   })
 
-  hintTimer = setTimeout(() => { showHint.value = false }, 4000)
+  hintTimer = setTimeout(() => {
+    showHint.value = false
+  }, 4000)
 
   window.addEventListener('keydown', onWindowKeyDown)
 })
@@ -97,8 +125,18 @@ onMounted(async () => {
 onUnmounted(async () => {
   window.removeEventListener('keydown', onWindowKeyDown)
   clearTimeout(hintTimer)
+  gameStore.saveCurrentSessionForContinue()
   await engine.unmount()
+  gameStore.detachGameBus()
+  gameStore.resetSessionMirror()
+  shell.setActiveModule(null)
 })
+
+async function goToMenu(): Promise<void> {
+  await gameStore.saveProgressForContinue(gameStore.sceneId.trim() || 'scene-01')
+  context.eventBus.emit(GAME_EVENTS.REQUEST_EXIT)
+  void router.push('/')
+}
 </script>
 
 <template>
@@ -116,21 +154,22 @@ onUnmounted(async () => {
       aria-busy="true"
       aria-live="polite"
     >
-      <span class="inline-block size-8 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" />
+      <span
+        class="inline-block size-8 rounded-full border-2 border-white/20 border-t-white/70 animate-spin"
+      />
       <span>Loading world…</span>
     </div>
 
-    <!-- Back button (above loading veil) -->
     <div class="absolute top-4 left-4 z-40">
       <button
+        type="button"
         class="flex items-center gap-2 px-4 py-2 bg-black/40 hover:bg-black/60 text-white/70 hover:text-white text-xs font-medium rounded-lg backdrop-blur-sm border border-white/10 transition-all"
-        @click="router.push('/')"
+        @click="goToMenu"
       >
         ← Menu
       </button>
     </div>
 
-    <!-- WASD hint -->
     <Transition
       enter-active-class="transition-opacity duration-500"
       leave-active-class="transition-opacity duration-700"
@@ -142,7 +181,9 @@ onUnmounted(async () => {
         class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none"
       >
         <div class="flex flex-col items-center gap-1">
-          <div class="flex justify-center"><kbd class="key">W</kbd></div>
+          <div class="flex justify-center">
+            <kbd class="key">W</kbd>
+          </div>
           <div class="flex gap-1">
             <kbd class="key">A</kbd><kbd class="key">S</kbd><kbd class="key">D</kbd>
           </div>
@@ -151,12 +192,14 @@ onUnmounted(async () => {
           move · Shift sprint · Ctrl crouch · Space jump (buffer)
         </p>
         <p class="text-white/20 text-[10px] tracking-wider text-center">
-          Tab third / first person · [ ] cycle rig (third person)
+          First person: click canvas to capture mouse · look around · Esc releases
+        </p>
+        <p class="text-white/20 text-[10px] tracking-wider text-center">
+          Tab — first / third person · [ ] cycle rig (third person only)
         </p>
       </div>
     </Transition>
 
-    <!-- Camera mode + preset -->
     <div
       class="absolute bottom-4 right-4 px-2 py-1 rounded-md bg-black/50 border border-white/10 text-[10px] font-mono text-white/50 uppercase tracking-wide max-w-[min(100vw-2rem,20rem)] text-right leading-relaxed"
     >

@@ -5,6 +5,7 @@ import { useGameStore } from '@/stores/game'
 
 const router = useRouter()
 const gameStore = useGameStore()
+const isDev = import.meta.env.DEV
 
 onMounted(() => {
   void gameStore.refreshCanContinue()
@@ -12,6 +13,12 @@ onMounted(() => {
 
 function playNew(): void {
   gameStore.discardPendingContinue()
+  void router.push('/game')
+}
+
+/** Dev / test: FPV in scene 2 without using the editor working-scene switch. */
+function playScene2Test(): void {
+  gameStore.stageInitialSceneForNextPlay('scene-02')
   void router.push('/game')
 }
 
@@ -28,8 +35,8 @@ async function continueGame(): Promise<void> {
 <template>
   <div class="flex flex-col items-center justify-center min-h-screen bg-zinc-950 gap-4 select-none">
     <div class="flex flex-col items-center gap-2 mb-8">
-      <h1 class="text-5xl font-bold tracking-tight text-white">first-game</h1>
-      <p class="text-xs font-medium tracking-[0.3em] uppercase text-zinc-500">Phase 4 · @base fork</p>
+      <h1 class="text-5xl font-bold tracking-tight text-white">Three Dreams</h1>
+      <p class="text-xs font-medium tracking-[0.3em] uppercase text-zinc-500">Scene 1 · cliff · @base</p>
     </div>
 
     <div class="flex flex-col gap-3 w-52">
@@ -54,18 +61,20 @@ async function continueGame(): Promise<void> {
         Continue
       </button>
       <button
-        class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
+        v-if="isDev"
+        class="w-full px-6 py-3 bg-amber-700/90 hover:bg-amber-600 active:bg-amber-800 text-white text-sm font-semibold rounded-xl transition-colors"
         type="button"
-        @click="router.push('/scene')"
+        @click="playScene2Test"
       >
-        Scene (dev)
+        Play scene 2 (test)
       </button>
       <button
+        v-if="isDev"
         class="w-full px-6 py-3 bg-violet-700 hover:bg-violet-600 active:bg-violet-800 text-white text-sm font-semibold rounded-xl transition-colors"
         type="button"
         @click="router.push('/editor')"
       >
-        Scene editor (dev)
+        Scene editor
       </button>
       <button
         class="w-full px-6 py-3 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white text-sm font-semibold rounded-xl transition-colors"

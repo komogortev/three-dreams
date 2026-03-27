@@ -71,6 +71,8 @@ export function serializeDescriptor(
   editorObjects: EditorObject[],
   scatterFieldsOverride?: ScatterField[],
   atmosphereOverride?: AtmosphereDescriptor,
+  /** Matches `export const <name>` in the generated snippet (e.g. scene01, scene02). */
+  exportSymbol = 'sceneDescriptor',
 ): string {
   const scatterFields =
     scatterFieldsOverride ??
@@ -83,11 +85,9 @@ export function serializeDescriptor(
     objects:    allObjects.length > 0 ? allObjects : undefined,
   }
 
-  // Must match imports in SceneView / EditorView (`scene01` from @/scenes/scene-01).
-  // If you paste into another file (e.g. scene-02.ts), rename the symbol to match.
   return [
     `import type { SceneDescriptor } from '@base/scene-builder'\n`,
-    `export const scene01: SceneDescriptor = ${tsLiteral(merged, 0)}`,
+    `export const ${exportSymbol}: SceneDescriptor = ${tsLiteral(merged, 0)}`,
   ].join('\n')
 }
 
@@ -97,9 +97,16 @@ export async function copyDescriptorToClipboard(
   editorObjects: EditorObject[],
   scatterFieldsOverride?: ScatterField[],
   atmosphereOverride?: AtmosphereDescriptor,
+  exportSymbol?: string,
 ): Promise<boolean> {
   return writeClipboard(
-    serializeDescriptor(base, editorObjects, scatterFieldsOverride, atmosphereOverride),
+    serializeDescriptor(
+      base,
+      editorObjects,
+      scatterFieldsOverride,
+      atmosphereOverride,
+      exportSymbol,
+    ),
   )
 }
 

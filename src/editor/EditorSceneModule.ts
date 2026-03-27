@@ -412,6 +412,10 @@ export class EditorSceneModule extends BaseModule {
     this._ctx.scene.remove(this.transform.getHelper())
     this.transform.dispose()
     this._unregisterLoop?.()
+
+    this._ctx.scene.clear()
+    this._ctx.scene.background = null
+    this._ctx.scene.fog = null
   }
 
   // ─── Public API ───────────────────────────────────────────────────────────────
@@ -421,6 +425,11 @@ export class EditorSceneModule extends BaseModule {
   get selectedIndex(): number | null { return this._selectedIndex }
   get objects():       EditorObject[] { return this._objects }
   get activeGltfUrl(): string        { return this._activeGltfUrl }
+
+  /** Canonical descriptor passed at construction (for export / scene registry). */
+  getSourceDescriptor(): SceneDescriptor {
+    return this.descriptor
+  }
 
   setActiveTool(tool: EditorTool): void {
     if (this._playSimulation) return
@@ -1211,7 +1220,7 @@ export class EditorSceneModule extends BaseModule {
       mode: 'third-person',
       firstPerson:
         ch.modelUrl?.trim()
-          ? { eyeOffsetY: 0.75, crouchEyeDrop: 0.28 }
+          ? { eyeOffsetY: 0.78, crouchEyeDrop: 0.28, eyePullback: 0.072 }
           : undefined,
     })
 

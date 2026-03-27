@@ -12,17 +12,20 @@ export const router = createRouter({
     {
       path: '/game',
       name: 'game',
-      component: () => import('@/views/GameView.vue'),
+      component: () => import('@/views/SceneView.vue'),
     },
     {
       path: '/scene',
-      name: 'scene',
-      component: () => import('@/views/SceneView.vue'),
+      redirect: { name: 'game' },
     },
     {
       path: '/editor',
       name: 'editor',
       component: () => import('@/views/EditorView.vue'),
+      beforeEnter: (_to, _from, next) => {
+        if (import.meta.env.DEV) next()
+        else next({ path: '/' })
+      },
     },
     {
       path: '/settings',

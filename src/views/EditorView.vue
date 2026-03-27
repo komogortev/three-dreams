@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ThreeModule } from '@base/threejs-engine'
@@ -9,8 +9,8 @@ import { EditorSceneModule } from '@/editor/EditorSceneModule'
 import type { EditorState, EditorTool, EditorObject, GizmoMode, EnvironmentState } from '@/editor/EditorSceneModule'
 import type { PrimitiveType, GltfObject, ScatterField } from '@base/scene-builder'
 import { copyObjectsToClipboard, copyDescriptorToClipboard } from '@/editor/DescriptorExporter'
-import { scene01 } from '@/scenes/scene-01'
 import { EDITOR_ORBIT_BOOKMARKS } from '@/editor/editorOrbitPresets'
+import { SCENE_REGISTRY, getSceneEntry, type SceneRegistryId } from '@/scenes/registry'
 
 function defaultEnvironmentState(): EnvironmentState {
   return {
@@ -45,7 +45,10 @@ const container = ref<HTMLElement>()
 const engine      = new ThreeModule()
 /** Touch overlay would sit above the canvas and block OrbitControls mouse drags. */
 const inputModule = new InputModule(DEFAULT_BINDINGS, { enableTouchOverlay: false })
-const editor      = new EditorSceneModule(scene01)
+
+const initialSceneEntry = SCENE_REGISTRY[0]!
+const activeSceneId = ref<SceneRegistryId>(initialSceneEntry.id)
+const editor = shallowRef(new EditorSceneModule(initialSceneEntry.descriptor))
 
 // ─── Reactive editor state ────────────────────────────────────────────────────
 
@@ -84,8 +87,8 @@ const gltfUrlInput = ref('')
 function applyGltfUrl(): void {
   const url = gltfUrlInput.value.trim()
   if (!url) return
-  editor.setActiveGltfUrl(url)
-  editor.setActiveTool('gltf')
+  editor.value.setActiveGltfUrl(url)
+  editor.value.setActiveTool('gltf')
 }
 
 // ─── Clipboard ────────────────────────────────────────────────────────────────
@@ -101,17 +104,20 @@ function flash(label: Ref<string>, ok: boolean, reset: string): void {
 }
 
 async function copyObjects(): Promise<void> {
-  flash(copyObjLabel, await copyObjectsToClipboard(editor.getObjects()), 'Copy objects[]')
+  flash(copyObjLabel, await copyObjectsToClipboard(editor.value.getObjects()), 'Copy objects[]')
 }
 
 async function copyDescriptor(): Promise<void> {
+  const entry = getSceneEntry(activeSceneId.value)
+  const sym = entry?.exportSymbol ?? 'sceneDescriptor'
   flash(
     copyDescLabel,
     await copyDescriptorToClipboard(
-      scene01,
-      editor.getObjects(),
-      editor.getScatterFields(),
-      editor.getAtmosphereForExport(),
+      editor.value.getSourceDescriptor(),
+      editor.value.getObjects(),
+      editor.value.getScatterFields(),
+      editor.value.getAtmosphereForExport(),
+      sym,
     ),
     'Copy full scene',
   )
@@ -122,7 +128,7 @@ function scatterZoneLabel(sf: ScatterField, idx: number): string {
 }
 
 function patchScatter(idx: number, patch: Partial<ScatterField>): void {
-  editor.updateScatterField(idx, patch)
+  editor.value.updateScatterField(idx, patch)
 }
 
 // ─── Tool helpers ─────────────────────────────────────────────────────────────
@@ -136,13 +142,13 @@ const PRIMITIVE_ICONS: Record<PrimitiveType, string> = {
   pillar:  '🏛️',
 }
 
-function setTool(tool: EditorTool): void  { editor.setActiveTool(tool) }
-function setMode(mode: GizmoMode): void   { editor.setGizmoMode(mode) }
-function selectItem(idx: number): void    { editor.selectByIndex(idx) }
-function deleteSelected(): void           { editor.deleteSelected() }
+function setTool(tool: EditorTool): void  { editor.value.setActiveTool(tool) }
+function setMode(mode: GizmoMode): void   { editor.value.setGizmoMode(mode) }
+function selectItem(idx: number): void    { editor.value.selectByIndex(idx) }
+function deleteSelected(): void           { editor.value.deleteSelected() }
 
 function setOrbitBookmark(idx: number): void {
-  editor.setOrbitBookmarkIndex(idx)
+  editor.value.setOrbitBookmarkIndex(idx)
 }
 
 function focusEngineSurface(): void {
@@ -150,7 +156,24 @@ function focusEngineSurface(): void {
 }
 
 function togglePlaySimulation(): void {
-  editor.setPlaySimulation(!state.value.playSimulation)
+  editor.value.setPlaySimulation(!state.value.playSimulation)
+}
+
+async function switchEditorScene(id: string): Promise<void> {
+  if (id === activeSceneId.value) return
+  const entry = getSceneEntry(id)
+  if (!entry) return
+  if (state.value.playSimulation) {
+    editor.value.setPlaySimulation(false)
+  }
+  await engine.unmountChild('editor')
+  editor.value = new EditorSceneModule(entry.descriptor)
+  editor.value.onStateChanged = (s) => {
+    state.value = s
+  }
+  await engine.mountChild('editor', editor.value)
+  activeSceneId.value = id as SceneRegistryId
+  container.value?.focus()
 }
 
 function objectIcon(obj: EditorObject): string {
@@ -186,10 +209,12 @@ watch(
 
 onMounted(async () => {
   if (!container.value) return
-  editor.onStateChanged = (s) => { state.value = s }
+  editor.value.onStateChanged = (s) => {
+    state.value = s
+  }
   await engine.mount(container.value, context)
   await engine.mountChild('input', inputModule)
-  await engine.mountChild('editor', editor)
+  await engine.mountChild('editor', editor.value)
   container.value.focus()
 })
 
@@ -276,6 +301,24 @@ onUnmounted(async () => {
     <!-- ── Right sidebar ─────────────────────────────────────────────────────── -->
     <div class="absolute top-0 right-0 bottom-0 w-64 flex flex-col
                 bg-black/70 backdrop-blur-md border-l border-white/10 text-white text-xs">
+
+      <!-- ── Scene switch (registry) ── -->
+      <div class="px-3 pt-3 pb-2 border-b border-white/10">
+        <p class="text-white/30 uppercase tracking-widest text-[10px] mb-1.5">Working scene</p>
+        <select
+          :value="activeSceneId"
+          class="w-full px-2 py-1.5 rounded bg-white/5 border border-white/10 text-white/85 text-[11px]
+                 focus:outline-none focus:border-violet-500/60"
+          @change="switchEditorScene(($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="e in SCENE_REGISTRY" :key="e.id" :value="e.id">
+            {{ e.label }}
+          </option>
+        </select>
+        <p class="mt-1 text-white/20 text-[10px] leading-snug">
+          Reloads terrain and objects for the chosen descriptor (orbit / tools reset).
+        </p>
+      </div>
 
       <!-- ── Primitive tools ── -->
       <div class="px-3 pt-3 pb-2 border-b border-white/10">

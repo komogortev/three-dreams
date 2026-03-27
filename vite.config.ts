@@ -49,7 +49,7 @@ export default defineConfig(({ mode }) => {
           manifest: {
             name: 'three-dreams',
             short_name: 'dreams',
-            description: 'Phase 4 game — @base stack',
+            description: 'Three Dreams — Scene 1 · @base stack',
             theme_color: '#09090b',
             background_color: '#09090b',
             display: 'standalone',
