@@ -1,6 +1,6 @@
-import type { ThirdPersonSceneConfig } from '@/modules/ThirdPersonSceneModule'
+import type { GameplaySceneConfig } from '@/modules/GameplaySceneModule'
 
-export type SceneGameplayPolicy = Pick<ThirdPersonSceneConfig, 'secretDoubleJump'>
+export type SceneGameplayPolicy = Pick<GameplaySceneConfig, 'secretDoubleJump'>
 
 const SCENE_GAMEPLAY_POLICIES: Record<string, SceneGameplayPolicy> = {
   'scene-01': {
