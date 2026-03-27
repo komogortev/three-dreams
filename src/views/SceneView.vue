@@ -9,10 +9,11 @@ import {
   type GameplayCameraMode,
   type ThirdPersonCameraPreset,
 } from '@base/camera-three'
-import { ThirdPersonSceneModule } from '@/modules/ThirdPersonSceneModule'
+import { GameplaySceneModule } from '@/modules/GameplaySceneModule'
 import { GameLogicModule } from '@/modules/GameLogicModule'
 import { GAME_EVENTS } from '@/game/sessionTypes'
 import { scene01 } from '@/scenes/scene-01'
+import { getSceneGameplayPolicy } from '@/scenes/gameplayPolicy'
 import { getSceneDescriptor } from '@/scenes/registry'
 import { useShellContext } from '@/composables/useShellContext'
 import { useShellStore } from '@/stores/shell'
@@ -30,7 +31,8 @@ const audioModule = new AudioModule()
 
 const initialSceneId = gameStore.pullBootstrapSceneId() ?? 'scene-01'
 const gameLogic = new GameLogicModule({ initialSceneId })
-const sceneModule = new ThirdPersonSceneModule({
+const sceneGameplayPolicy = getSceneGameplayPolicy(initialSceneId)
+const sceneModule = new GameplaySceneModule({
   descriptor: getSceneDescriptor(initialSceneId) ?? scene01,
   cameraMode: 'first-person',
   cameraPreset: 'close-follow',
@@ -39,6 +41,7 @@ const sceneModule = new ThirdPersonSceneModule({
   firstPersonCrouchEyeDrop: 0.32,
   /** Forward on XZ toward view; extra vs sprint head pitch so eyelids do not clip the near plane. */
   firstPersonEyePullback: 0.092,
+  ...sceneGameplayPolicy,
 })
 
 const cameraPresetLabel = ref<ThirdPersonCameraPreset>(sceneModule.getCameraPreset())

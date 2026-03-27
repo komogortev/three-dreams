@@ -46,6 +46,27 @@ Keep scenario logic in the **game repo**; promote reusable pieces (e.g. generic 
 
 ---
 
+## Checkpoint — Target 1 (double jump + secret window)
+
+**Landed this session**
+
+- `@base/player-three` now supports configurable airborne extra jumps with semantic movement events (`jump_started`, `extra_jump_used`, `landed`) and default-off behavior for non-consumers.
+- `CharacterAnimationRig` now accepts a second-jump trigger intent with fallback to existing jump clips when a dedicated double-jump clip is absent.
+- `ThirdPersonSceneModule` now includes a scene-local `secretDoubleJump` policy:
+  - one-off gated second jump,
+  - directional + activation-zone checks,
+  - pre/post-fall secret window,
+  - optional short slowmo while the window is active.
+- Successful in-window second jump now emits `game:report-outcome` with `kind: 'win'` and reason `secret-double-jump-landing` on landing.
+
+**Still open (next branch)**
+
+- Tune scene-01 policy constants (zone center/radius, required direction, thresholds, window length) against actual cliff route.
+- Add outcome UI pass and explicit post-win beat in HUD/menu flow.
+- Implement the broader traversal/fall matrix (wall-upstep, catch-self, injury ladders, relocation-as-lostness) on top of the new contract.
+
+---
+
 ## Research / feasibility (assess before building)
 
 ### Heatmap authoring in the editor (brush / sculpt)
@@ -69,3 +90,31 @@ Keep scenario logic in the **game repo**; promote reusable pieces (e.g. generic 
 
 - [Game state system](./game-state-system.md) — session layers, save key (note: some paths may still say `GameView`; play uses `SceneView`)
 - [README](../README.md) — routes, scene layout, Pages build
+
+---
+
+## Asset pipeline note — scene object set extraction
+
+### Goal
+
+Build a reproducible pipeline to extract environment objects (trees, cars, props, etc.) from complete scene GLBs into **modular per-object GLBs** grouped as a versioned **asset set** that the editor and runtime can consume without breaking scene descriptors.
+
+### Why now
+
+- Current authored scenes mix bespoke GLB content and scatter primitives.
+- We need style-swappable packs (e.g. realistic vs stylized) while preserving editor contracts and placement data.
+
+### Planned work (large task)
+
+1. Define an **asset-set contract** (ids, categories, scale metadata, pivot/orientation conventions, optional tags).
+2. Define an on-disk structure under a stable root (e.g. `public/asset-sets/<set-id>/<category>/<asset-id>.glb` + manifest).
+3. Build extraction tooling (semi-automated first, then automated):
+   - split full GLB scene into object GLBs,
+   - normalize pivots, transforms, naming,
+   - generate manifest JSON compatible with editor pickers.
+4. Update editor to source placeable entries from manifests (not hardcoded object lists).
+5. Add compatibility rules so replacing one asset set with another does not break scene descriptors.
+
+### Deliverable checkpoint
+
+One reference asset set generated from current scene content + documented repeatable pipeline + editor integration on manifest-driven object palette.

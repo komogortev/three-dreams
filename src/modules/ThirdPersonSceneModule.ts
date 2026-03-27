@@ -22,6 +22,7 @@ import {
   type TerrainSampler,
 } from '@base/scene-builder'
 import { createSceneBuildOptions } from '@/utils/sceneBuildOptions'
+import { GAME_EVENTS } from '@/game/sessionTypes'
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -60,6 +61,23 @@ export interface ThirdPersonSceneConfig {
    * If omitted and the descriptor loads a `modelUrl`, {@link DEFAULT_SKINNED_CROUCH_TERRAIN_Y_DELTA} is applied automatically.
    */
   crouchTerrainYOffsetDelta?: number
+  /**
+   * Scene-local secret double-jump policy.
+   * Keep this feature scenario-owned here; shared packages expose only generic movement capability.
+   */
+  secretDoubleJump?: {
+    enabled: boolean
+    activationCenterX: number
+    activationCenterZ: number
+    activationRadius: number
+    requiredDirectionX: number
+    requiredDirectionZ: number
+    minDirectionDot: number
+    preFallVyThreshold: number
+    postFallGraceSeconds: number
+    slowmoScale: number
+    slowmoMaxSeconds: number
+  }
 }
 
 const DEFAULT_CONFIG: ThirdPersonSceneConfig = {
@@ -69,6 +87,19 @@ const DEFAULT_CONFIG: ThirdPersonSceneConfig = {
   characterSpeed: 7,
   cameraLerp: 8,
   facingLerp: 12,
+  secretDoubleJump: {
+    enabled: false,
+    activationCenterX: 0,
+    activationCenterZ: 0,
+    activationRadius: 999,
+    requiredDirectionX: 1,
+    requiredDirectionZ: 0,
+    minDirectionDot: 0.75,
+    preFallVyThreshold: -0.18,
+    postFallGraceSeconds: 0.3,
+    slowmoScale: 0.35,
+    slowmoMaxSeconds: 1.5,
+  },
 }
 
 /**
@@ -138,6 +169,14 @@ export class ThirdPersonSceneModule extends BaseModule {
   private readonly fpPitchLimit = Math.PI / 2 - 0.15
 
   private readonly gameplayCam: GameplayCameraController
+  private jumpHeld = false
+  private secretWindowOpen = false
+  private secretWindowTimer = 0
+  private secretSecondJumpTriggered = false
+  private secretPendingWinOnLand = false
+  private secretConsumed = false
+  private slowmoRemainingSeconds = 0
+  private secondJumpAnimTrigger = false
 
   constructor(
     options: Partial<ThirdPersonSceneConfig> & { descriptor?: SceneDescriptor } = {},
@@ -183,6 +222,8 @@ export class ThirdPersonSceneModule extends BaseModule {
       facingLerp: this.cfg.facingLerp,
       terrainYOffset: PLAYER_CAPSULE_HALF_HEIGHT,
       debugMovement: playerMovementDebugEnabled(),
+      extraJumps: 1,
+      canUseExtraJump: () => this.canUseSecretExtraJumpNow(),
     })
     if (import.meta.env.DEV && playerMovementDebugEnabled()) {
       console.log(
@@ -293,8 +334,15 @@ export class ThirdPersonSceneModule extends BaseModule {
 
     this.offInputAction = context.eventBus.on('input:action', (raw) => {
       const e = raw as InputActionEvent
-      if (e.action === 'jump' && e.type === 'pressed') {
+      if (e.action !== 'jump') return
+      if (e.type === 'pressed') {
+        this.jumpHeld = true
         this.player.notifyJumpPressed()
+      } else if (e.type === 'released') {
+        this.jumpHeld = false
+        if (this.secretSecondJumpTriggered) {
+          this.slowmoRemainingSeconds = 0
+        }
       }
     })
 
@@ -377,6 +425,7 @@ export class ThirdPersonSceneModule extends BaseModule {
   // ─── Per-frame update ─────────────────────────────────────────────────────────
 
   private tick(delta: number, ctx: ThreeContext): void {
+    const simDelta = this.computeSimDelta(delta)
     const sprintHeld = this.locoSprintOr
     const crouchHeld = this.locoCrouchOr
     const jogHeld = this.locoJogOr
@@ -397,7 +446,7 @@ export class ThirdPersonSceneModule extends BaseModule {
       }
     }
 
-    this.player.tick(delta, {
+    this.player.tick(simDelta, {
       camera: ctx.camera,
       character: this.character,
       sampler: this.sampler,
@@ -405,23 +454,128 @@ export class ThirdPersonSceneModule extends BaseModule {
       sprintHeld,
       crouchHeld,
     })
+    const movementEvents = this.player.consumeEvents()
+    this.handlePlayerEvents(movementEvents)
 
     const snap = this.player.getSnapshot()
-    this.animRig?.update(delta, this.character, snap.velocity, {
+    this.animRig?.update(simDelta, this.character, snap.velocity, {
       crouch: snap.crouching,
       sprint: snap.sprinting,
       grounded: snap.grounded,
       jog: jogHeld,
+      secondJumpTrigger: this.secondJumpAnimTrigger,
     })
+    this.secondJumpAnimTrigger = false
+    this.updateSecretWindow(simDelta, snap.velocity.y)
 
     const fpMode = this.gameplayCam.getMode() === 'first-person'
     this.gameplayCam.update(
       ctx.camera,
-      delta,
+      simDelta,
       this.character,
       this.player.getFacing(),
       this.player.getCrouchGroundBlend(),
       fpMode ? this.fpPitch : 0,
     )
+  }
+
+  private canUseSecretExtraJumpNow(): boolean {
+    return (
+      !!this.cfg.secretDoubleJump?.enabled &&
+      this.secretWindowOpen &&
+      !this.secretConsumed
+    )
+  }
+
+  private computeSimDelta(delta: number): number {
+    if (this.slowmoRemainingSeconds <= 0) return delta
+    this.slowmoRemainingSeconds = Math.max(0, this.slowmoRemainingSeconds - delta)
+    return delta * (this.cfg.secretDoubleJump?.slowmoScale ?? 0.35)
+  }
+
+  private isInSecretActivationZone(): boolean {
+    const s = this.cfg.secretDoubleJump
+    if (!s?.enabled) return false
+    const dx = this.character.position.x - s.activationCenterX
+    const dz = this.character.position.z - s.activationCenterZ
+    return dx * dx + dz * dz <= s.activationRadius * s.activationRadius
+  }
+
+  private movementMatchesSecretDirection(velocity: { x: number; y: number; z: number }): boolean {
+    const s = this.cfg.secretDoubleJump
+    if (!s?.enabled) return false
+    const len = Math.hypot(velocity.x, velocity.z)
+    if (len < 1e-4) return false
+    const vx = velocity.x / len
+    const vz = velocity.z / len
+    const dirLen = Math.hypot(s.requiredDirectionX, s.requiredDirectionZ) || 1
+    const dx = s.requiredDirectionX / dirLen
+    const dz = s.requiredDirectionZ / dirLen
+    const dot = vx * dx + vz * dz
+    return dot >= s.minDirectionDot
+  }
+
+  private handlePlayerEvents(
+    events: Array<{ type: string; jumpIndex?: number; remainingExtraJumps?: number }>,
+  ): void {
+    for (const event of events) {
+      if (event.type === 'jump_started') {
+        this.tryOpenSecretWindowFromTakeoff()
+        continue
+      }
+      if (event.type === 'extra_jump_used') {
+        if (this.secretWindowOpen && !this.secretConsumed) {
+          this.secretSecondJumpTriggered = true
+          this.secretPendingWinOnLand = true
+          this.secretConsumed = true
+          this.secondJumpAnimTrigger = true
+          this.secretWindowOpen = false
+          this.secretWindowTimer = 0
+          this.slowmoRemainingSeconds = this.cfg.secretDoubleJump?.slowmoMaxSeconds ?? 1.5
+        }
+        continue
+      }
+      if (event.type === 'landed') {
+        if (this.secretPendingWinOnLand) {
+          this.context.eventBus.emit(GAME_EVENTS.REPORT_OUTCOME, {
+            kind: 'win',
+            reason: 'secret-double-jump-landing',
+          })
+          this.secretPendingWinOnLand = false
+          this.secretSecondJumpTriggered = false
+          this.slowmoRemainingSeconds = 0
+        }
+      }
+    }
+  }
+
+  private tryOpenSecretWindowFromTakeoff(): void {
+    const s = this.cfg.secretDoubleJump
+    if (!s?.enabled || this.secretConsumed) return
+    const snap = this.player.getSnapshot()
+    if (!this.isInSecretActivationZone()) return
+    if (!this.movementMatchesSecretDirection(snap.velocity)) return
+    this.secretWindowOpen = true
+    this.secretWindowTimer = s.postFallGraceSeconds
+    this.slowmoRemainingSeconds = s.slowmoMaxSeconds
+  }
+
+  private updateSecretWindow(delta: number, verticalVelocity: number): void {
+    const s = this.cfg.secretDoubleJump
+    if (!s?.enabled || !this.secretWindowOpen) return
+    if (verticalVelocity > s.preFallVyThreshold) return
+    this.secretWindowTimer = Math.max(0, this.secretWindowTimer - delta)
+    if (this.secretWindowTimer <= 0) {
+      this.secretWindowOpen = false
+      if (!this.secretSecondJumpTriggered) {
+        this.slowmoRemainingSeconds = 0
+      }
+    }
+    if (!this.isInSecretActivationZone()) {
+      this.secretWindowOpen = false
+      if (!this.secretSecondJumpTriggered) {
+        this.slowmoRemainingSeconds = 0
+      }
+    }
   }
 }
