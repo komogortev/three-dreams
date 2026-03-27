@@ -14,6 +14,7 @@ import {
   DEFAULT_SKINNED_CROUCH_TERRAIN_Y_DELTA,
   PlayerController,
   PLAYER_CAPSULE_HALF_HEIGHT,
+  type PlayerControllerEvent,
   sampleTerrainFootprintY,
 } from '@base/player-three'
 import {
@@ -231,7 +232,6 @@ export class EditorSceneModule extends BaseModule {
   private _gameplayCam: GameplayCameraController | null = null
   private _locoSprintOr = false
   private _locoCrouchOr = false
-  private _locoJogOr = false
   private _playPresetIndex = 0
   private _playEnterCancelled = false
   private _animRig: CharacterAnimationRig | null = null
@@ -360,7 +360,6 @@ export class EditorSceneModule extends BaseModule {
       if (e.axis === 'locomotion') {
         this._locoSprintOr ||= e.value.x > 0.5
         this._locoCrouchOr ||= e.value.y > 0.5
-        this._locoJogOr ||= (e.value.z ?? 0) > 0.5
       }
     })
 
@@ -1332,6 +1331,18 @@ export class EditorSceneModule extends BaseModule {
     this._player = null
   }
 
+  private static _landedMetrics(
+    events: PlayerControllerEvent[],
+  ): { fallDistance: number; airTimeSeconds: number } | null {
+    let last: { fallDistance: number; airTimeSeconds: number } | null = null
+    for (const e of events) {
+      if (e.type === 'landed') {
+        last = { fallDistance: e.fallDistance, airTimeSeconds: e.airTimeSeconds }
+      }
+    }
+    return last
+  }
+
   private static _disposePlayCharacterResources(root: THREE.Object3D): void {
     root.traverse((o) => {
       if (o instanceof THREE.Mesh) {
@@ -1351,10 +1362,8 @@ export class EditorSceneModule extends BaseModule {
 
     const sprintHeld = this._locoSprintOr
     const crouchHeld = this._locoCrouchOr
-    const jogHeld = this._locoJogOr
     this._locoSprintOr = false
     this._locoCrouchOr = false
-    this._locoJogOr = false
 
     this._player.tick(delta, {
       camera: this._ctx.camera,
@@ -1365,12 +1374,16 @@ export class EditorSceneModule extends BaseModule {
       crouchHeld,
     })
 
+    const movementEvents = this._player.consumeEvents()
+    const land = EditorSceneModule._landedMetrics(movementEvents)
+
     const snap = this._player.getSnapshot()
     this._animRig?.update(delta, this._avatarRoot, snap.velocity, {
       crouch: snap.crouching,
       sprint: snap.sprinting,
       grounded: snap.grounded,
-      jog: jogHeld,
+      landFallDistance: land?.fallDistance,
+      landAirTimeSeconds: land?.airTimeSeconds,
     })
 
     this._gameplayCam.update(
@@ -1414,10 +1427,8 @@ export class EditorSceneModule extends BaseModule {
 
     const sprintHeld = this._locoSprintOr
     const crouchHeld = this._locoCrouchOr
-    const jogHeld = this._locoJogOr
     this._locoSprintOr = false
     this._locoCrouchOr = false
-    this._locoJogOr = false
 
     this._orbitFollowPrev.copy(this._avatarRoot.position)
     this._player.tick(delta, {
@@ -1430,12 +1441,16 @@ export class EditorSceneModule extends BaseModule {
     })
     this._panOrbitRigByAvatarDelta()
 
+    const movementEvents = this._player.consumeEvents()
+    const land = EditorSceneModule._landedMetrics(movementEvents)
+
     const snap = this._player.getSnapshot()
     this._animRig?.update(delta, this._avatarRoot, snap.velocity, {
       crouch: snap.crouching,
       sprint: snap.sprinting,
       grounded: snap.grounded,
-      jog: jogHeld,
+      landFallDistance: land?.fallDistance,
+      landAirTimeSeconds: land?.airTimeSeconds,
     })
 
     this._walkSpawnX = this._avatarRoot.position.x

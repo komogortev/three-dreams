@@ -34,6 +34,9 @@ const disablePwa =
 
 export default defineConfig(({ mode }) => {
   const base = viteBase()
+  /** App root (three-dreams/). Linked `@base/*` packages resolve under ../SHARED — allow FS + avoid broken `import.meta.url` in deps. */
+  const appRoot = fileURLToPath(new URL('.', import.meta.url))
+  const sharedRoot = resolve(appRoot, '../SHARED')
 
   return {
     base,
@@ -69,8 +72,18 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    server: {
+      fs: {
+        allow: [appRoot, sharedRoot],
+      },
+    },
     optimizeDeps: {
       include: ['three', '@base/threejs-engine'],
+      /**
+       * `@base/player-three` builds FBX URLs with `new URL('../assets/...', import.meta.url)`.
+       * Pre-bundling into `.vite/deps` rewires `import.meta.url` to the chunk path → wrong asset base → 404 clips → T-pose.
+       */
+      exclude: ['@base/player-three'],
     },
   }
 })
