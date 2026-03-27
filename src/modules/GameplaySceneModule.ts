@@ -178,6 +178,8 @@ export class GameplaySceneModule extends BaseModule {
   private slowmoRemainingSeconds = 0
   private secondJumpAnimTrigger = false
   private edgeCatchAnimTrigger = false
+  private wallStumbleAnimTrigger = false
+  private failedJumpAnimTrigger = false
 
   constructor(
     options: Partial<GameplaySceneConfig> & { descriptor?: SceneDescriptor } = {},
@@ -466,9 +468,13 @@ export class GameplaySceneModule extends BaseModule {
       jog: jogHeld,
       secondJumpTrigger: this.secondJumpAnimTrigger,
       edgeCatchTrigger: this.edgeCatchAnimTrigger,
+      wallStumbleTrigger: this.wallStumbleAnimTrigger,
+      failedJumpTrigger: this.failedJumpAnimTrigger,
     })
     this.secondJumpAnimTrigger = false
     this.edgeCatchAnimTrigger = false
+    this.wallStumbleAnimTrigger = false
+    this.failedJumpAnimTrigger = false
     this.updateSecretWindow(simDelta, snap.velocity.y)
 
     const fpMode = this.gameplayCam.getMode() === 'first-person'
@@ -540,6 +546,14 @@ export class GameplaySceneModule extends BaseModule {
       }
       if (event.type === 'edge_catch') {
         this.edgeCatchAnimTrigger = true
+        continue
+      }
+      if (event.type === 'wall_stumble') {
+        this.wallStumbleAnimTrigger = true
+        continue
+      }
+      if (event.type === 'jump_failed_high_ledge') {
+        this.failedJumpAnimTrigger = true
         continue
       }
       if (event.type === 'landed') {
