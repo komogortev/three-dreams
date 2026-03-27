@@ -1,4 +1,5 @@
 import type { SceneDescriptor } from '@base/scene-builder'
+import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
 
 export const scene02: SceneDescriptor = {
   terrain: {
@@ -59,34 +60,7 @@ export const scene02: SceneDescriptor = {
     modelFitHeight: 1.78,
     pruneExtraSkinnedMeshes: false,
     rotationY: 3.1416,
-    animationClipUrls: [
-      '/fbx/Crouch%20To%20Stand.fbx',
-      '/fbx/Crouched%20Sneaking%20Left%20(1).fbx',
-      '/fbx/Crouched%20Sneaking%20Left.fbx',
-      '/fbx/Crouched%20Sneaking%20Right%20(1).fbx',
-      '/fbx/Crouched%20Sneaking%20Right.fbx',
-      '/fbx/Crouched%20To%20Standing.fbx',
-      '/fbx/Crouched%20Walking%20(1).fbx',
-      '/fbx/Crouched%20Walking.fbx',
-      '/fbx/Crouching%20Idle.fbx',
-      '/fbx/Idle-action-ready.fbx',
-      '/fbx/Jumping%20Down.fbx',
-      '/fbx/Jumping.fbx',
-      '/fbx/Left%20Strafe%20Walking.fbx',
-      '/fbx/Male%20Crouch%20Pose.fbx',
-      '/fbx/Neutral%20Idle.fbx',
-      '/fbx/Right%20Strafe%20Walking.fbx',
-      '/fbx/Running%20slow.fbx',
-      '/fbx/Running%20sprint.fbx',
-      '/fbx/Start%20Walking.fbx',
-      '/fbx/Stop%20Walking.fbx',
-      '/fbx/Walking%20(1).fbx',
-      '/fbx/Walking%20Backwards%20(1).fbx',
-      '/fbx/Walking%20Backwards.fbx',
-      '/fbx/Walking%20Turn%20180%20(1).fbx',
-      '/fbx/Walking%20Turn%20180.fbx',
-      '/fbx/Walking.fbx',
-    ],
+    animationClipUrls: [...MIXAMO_FBX_CLIP_URLS],
   },
   objects: [
     {

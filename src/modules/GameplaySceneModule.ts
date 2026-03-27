@@ -177,6 +177,7 @@ export class GameplaySceneModule extends BaseModule {
   private secretConsumed = false
   private slowmoRemainingSeconds = 0
   private secondJumpAnimTrigger = false
+  private edgeCatchAnimTrigger = false
 
   constructor(
     options: Partial<GameplaySceneConfig> & { descriptor?: SceneDescriptor } = {},
@@ -464,8 +465,10 @@ export class GameplaySceneModule extends BaseModule {
       grounded: snap.grounded,
       jog: jogHeld,
       secondJumpTrigger: this.secondJumpAnimTrigger,
+      edgeCatchTrigger: this.edgeCatchAnimTrigger,
     })
     this.secondJumpAnimTrigger = false
+    this.edgeCatchAnimTrigger = false
     this.updateSecretWindow(simDelta, snap.velocity.y)
 
     const fpMode = this.gameplayCam.getMode() === 'first-person'
@@ -533,6 +536,10 @@ export class GameplaySceneModule extends BaseModule {
           this.secretWindowTimer = 0
           this.slowmoRemainingSeconds = this.cfg.secretDoubleJump?.slowmoMaxSeconds ?? 1.5
         }
+        continue
+      }
+      if (event.type === 'edge_catch') {
+        this.edgeCatchAnimTrigger = true
         continue
       }
       if (event.type === 'landed') {
