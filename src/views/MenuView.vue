@@ -70,6 +70,14 @@ async function continueGame(): Promise<void> {
       </button>
       <button
         v-if="isDev"
+        class="w-full px-6 py-3 bg-teal-800 hover:bg-teal-700 active:bg-teal-900 text-white text-sm font-semibold rounded-xl transition-colors"
+        type="button"
+        @click="router.push('/sandbox')"
+      >
+        Sandbox
+      </button>
+      <button
+        v-if="isDev"
         class="w-full px-6 py-3 bg-violet-700 hover:bg-violet-600 active:bg-violet-800 text-white text-sm font-semibold rounded-xl transition-colors"
         type="button"
         @click="router.push('/editor')"

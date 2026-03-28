@@ -37,6 +37,12 @@ export interface GameplaySceneConfig {
   cameraLerp: number
   /** Character facing rotation lerp speed. */
   facingLerp: number
+  /**
+   * Facing lerp speed used while camera is in third-person mode.
+   * Falls back to {@link facingLerp} when not set.
+   * Lower values give smoother, more cinematic body turns and camera-orbit feel.
+   */
+  facingLerpThirdPerson?: number
   /** Starting rig; overridden by explicit camera* fields when provided. */
   cameraPreset?: ThirdPersonCameraPreset
   cameraDistance?: number
@@ -62,6 +68,10 @@ export interface GameplaySceneConfig {
    * If omitted and the descriptor loads a `modelUrl`, {@link DEFAULT_SKINNED_CROUCH_TERRAIN_Y_DELTA} is applied automatically.
    */
   crouchTerrainYOffsetDelta?: number
+  /** Log jump arc telemetry (peak, fall dist, air time) on landing. */
+  debugJumpArc?: boolean
+  /** Log resolved animation clip names on CharacterAnimationRig init. */
+  debugClipResolution?: boolean
   /**
    * Scene-local secret double-jump policy.
    * Keep this feature scenario-owned here; shared packages expose only generic movement capability.
@@ -81,6 +91,45 @@ export interface GameplaySceneConfig {
   }
 }
 
+// ─── Fall time dilation ──────────────────────────────────────────────────────
+
+/**
+ * Configuration for narrative fall time-dilation.
+ * @see ThirdPersonSceneModule.setFallTimeDilation
+ */
+export interface FallTimeDilationConfig {
+  zone:
+    | { type: 'circle'; x: number; z: number; radius: number }
+    | { type: 'aabb'; minX: number; maxX: number; minZ: number; maxZ: number }
+  /** Facing angle (rad, 0 = +Z) the character must be facing at liftoff. Omit to skip. */
+  facingAngle?: number
+  /** Half-arc facing tolerance (rad). Default **π/3**. */
+  facingTolerance?: number
+  /** Minimum downward speed (m/s) before dilation activates. Default **4**. */
+  minFallSpeed?: number
+  /** Time scale while dilated. Default **0.25**. */
+  dilationScale?: number
+  /** Exponential blend speed (s⁻¹). Default **5**. */
+  blendSpeed?: number
+}
+
+function inDilationZone(cfg: FallTimeDilationConfig, x: number, z: number): boolean {
+  const { zone } = cfg
+  if (zone.type === 'circle') {
+    const dx = x - zone.x, dz = z - zone.z
+    return dx * dx + dz * dz <= zone.radius * zone.radius
+  }
+  return x >= zone.minX && x <= zone.maxX && z >= zone.minZ && z <= zone.maxZ
+}
+
+function facingMatches(cfg: FallTimeDilationConfig, facing: number): boolean {
+  if (cfg.facingAngle === undefined) return true
+  const tol = cfg.facingTolerance ?? Math.PI / 3
+  let diff = Math.abs(facing - cfg.facingAngle) % (Math.PI * 2)
+  if (diff > Math.PI) diff = Math.PI * 2 - diff
+  return diff <= tol
+}
+
 const DEFAULT_CONFIG: GameplaySceneConfig = {
   groundRadius: 50,
   groundColor: 0x0f172a,
@@ -88,6 +137,7 @@ const DEFAULT_CONFIG: GameplaySceneConfig = {
   characterSpeed: 7,
   cameraLerp: 8,
   facingLerp: 12,
+  facingLerpThirdPerson: 5,
   secretDoubleJump: {
     enabled: false,
     activationCenterX: 0,
@@ -148,6 +198,7 @@ export class GameplaySceneModule extends BaseModule {
 
   private character!: THREE.Object3D
   private sampler?: TerrainSampler
+  protected setSampler(s: TerrainSampler | undefined): void { this.sampler = s }
   private effectiveRadius = 50
 
   private offInputAxis: (() => void) | null = null
@@ -182,6 +233,16 @@ export class GameplaySceneModule extends BaseModule {
   private edgeCatchAnimTrigger = false
   private wallStumbleAnimTrigger = false
   private failedJumpAnimTrigger = false
+
+  // ── Dev time control (sandbox) ────────────────────────────────────────────
+  private _devTimeScale = 1.0
+  private _devPendingFrames = 0
+  private _devStepDelta = 1 / 60
+
+  // ── Fall time dilation ────────────────────────────────────────────────────
+  private _dilation: FallTimeDilationConfig | null = null
+  private _dilationActive = false
+  private _dilationCurrentScale = 1.0
 
   constructor(
     options: Partial<GameplaySceneConfig> & { descriptor?: SceneDescriptor } = {},
@@ -227,6 +288,7 @@ export class GameplaySceneModule extends BaseModule {
       facingLerp: this.cfg.facingLerp,
       terrainYOffset: PLAYER_CAPSULE_HALF_HEIGHT,
       debugMovement: playerMovementDebugEnabled(),
+      debugJumpArc: this.cfg.debugJumpArc,
       extraJumps: 1,
       canUseExtraJump: () => this.canUseSecretExtraJumpNow(),
     })
@@ -312,7 +374,9 @@ export class GameplaySceneModule extends BaseModule {
     }
 
     this.player.resetFacing(this.character.rotation.y)
-    this.animRig = new CharacterAnimationRig(this.character, { debugClipResolution: true })
+    this.animRig = new CharacterAnimationRig(this.character, {
+      debugClipResolution: this.cfg.debugClipResolution,
+    })
 
     this.initCamera(ctx.camera)
 
@@ -330,7 +394,6 @@ export class GameplaySceneModule extends BaseModule {
         this.locoCrouchOr ||= e.value.y > 0.5
       }
       if (e.axis === 'look') {
-        if (this.gameplayCam.getMode() !== 'first-person') return
         this.lookYawAcc += e.value.x
         this.lookPitchAcc += e.value.y
       }
@@ -350,7 +413,18 @@ export class GameplaySceneModule extends BaseModule {
       }
     })
 
-    this.unregisterSystem = ctx.registerSystem('third-person-scene', (delta) => {
+    this.unregisterSystem = ctx.registerSystem('third-person-scene', (rawDelta) => {
+      let delta: number
+      if (this._devTimeScale === 0) {
+        if (this._devPendingFrames > 0) {
+          this._devPendingFrames--
+          delta = this._devStepDelta
+        } else {
+          return
+        }
+      } else {
+        delta = rawDelta * this._devTimeScale
+      }
       this.environment?.update(delta)
       this.tick(delta, ctx)
     })
@@ -435,24 +509,34 @@ export class GameplaySceneModule extends BaseModule {
     this.locoSprintOr = false
     this.locoCrouchOr = false
 
-    if (this.gameplayCam.getMode() === 'first-person') {
-      if (this.lookYawAcc !== 0 || this.lookPitchAcc !== 0) {
+    if (this.lookYawAcc !== 0 || this.lookPitchAcc !== 0) {
+      if (this.gameplayCam.getMode() === 'first-person') {
         this.player.addFacingDelta(this.lookYawAcc)
         this.fpPitch = THREE.MathUtils.clamp(
           this.fpPitch + this.lookPitchAcc,
           -this.fpPitchLimit,
           this.fpPitchLimit,
         )
-        this.lookYawAcc = 0
-        this.lookPitchAcc = 0
+      } else {
+        // Third-person orbit: cap per-frame yaw to facingLerpThirdPerson rate so camera orbit
+        // feels the same speed as the character naturally turns while walking.
+        const tpRate = this.cfg.facingLerpThirdPerson ?? this.cfg.facingLerp
+        const maxYaw = tpRate * simDelta
+        this.player.addFacingDelta(Math.max(-maxYaw, Math.min(maxYaw, this.lookYawAcc)))
       }
+      this.lookYawAcc = 0
+      this.lookPitchAcc = 0
     }
 
+    const isThirdPerson = this.gameplayCam.getMode() === 'third-person'
     this.player.tick(simDelta, {
       camera: ctx.camera,
       character: this.character,
       sampler: this.sampler,
       playableRadius: this.effectiveRadius,
+      facingLerpOverride: isThirdPerson
+        ? (this.cfg.facingLerpThirdPerson ?? this.cfg.facingLerp)
+        : undefined,
       sprintHeld,
       crouchHeld,
     })
@@ -463,6 +547,8 @@ export class GameplaySceneModule extends BaseModule {
     this.pendingLandForRig = null
 
     const snap = this.player.getSnapshot()
+    this.tickFallDilation(snap, this.character)
+
     this.animRig?.update(simDelta, this.character, snap.velocity, {
       crouch: snap.crouching,
       sprint: snap.sprinting,
@@ -500,9 +586,13 @@ export class GameplaySceneModule extends BaseModule {
   }
 
   private computeSimDelta(delta: number): number {
-    if (this.slowmoRemainingSeconds <= 0) return delta
-    this.slowmoRemainingSeconds = Math.max(0, this.slowmoRemainingSeconds - delta)
-    return delta * (this.cfg.secretDoubleJump?.slowmoScale ?? 0.35)
+    let d = delta
+    if (this.slowmoRemainingSeconds > 0) {
+      this.slowmoRemainingSeconds = Math.max(0, this.slowmoRemainingSeconds - delta)
+      d = delta * (this.cfg.secretDoubleJump?.slowmoScale ?? 0.35)
+    }
+    // Apply fall dilation (multiplicative; 1.0 when inactive).
+    return d * this._dilationCurrentScale
   }
 
   private isInSecretActivationZone(): boolean {
@@ -603,5 +693,57 @@ export class GameplaySceneModule extends BaseModule {
         this.slowmoRemainingSeconds = 0
       }
     }
+  }
+
+  // ── Fall time dilation ───────────────────────────────────────────────────
+
+  /**
+   * Configure or clear the fall time-dilation zone.
+   * Pass `null` to disable and immediately restore real-time.
+   */
+  setFallTimeDilation(config: FallTimeDilationConfig | null): void {
+    this._dilation = config
+    if (!config) {
+      this._dilationActive = false
+      this._dilationCurrentScale = 1.0
+    }
+  }
+
+  // ── Dev time control (used by SandboxSceneModule / SandboxView) ──────────
+
+  setTimeScale(scale: number): void { this._devTimeScale = Math.max(0, scale) }
+  getTimeScale(): number { return this._devTimeScale }
+  stepOneFrame(): void { this._devPendingFrames++ }
+  setStepFrameDelta(seconds: number): void { this._devStepDelta = Math.max(1e-4, seconds) }
+
+  private tickFallDilation(
+    snap: ReturnType<PlayerController['getSnapshot']>,
+    character: THREE.Object3D,
+  ): void {
+    const cfg = this._dilation
+    if (!cfg) return
+
+    const minFallSpeed  = cfg.minFallSpeed ?? 4
+    const dilationScale = cfg.dilationScale ?? 0.25
+    const blendSpeed    = cfg.blendSpeed ?? 5
+
+    const isFalling = snap.mode === 'airborne' && snap.velocity.y < -minFallSpeed
+
+    if (!this._dilationActive) {
+      if (isFalling) {
+        const { x, z } = character.position
+        if (inDilationZone(cfg, x, z) && facingMatches(cfg, this.player.getFacing())) {
+          this._dilationActive = true
+        }
+      }
+    } else {
+      if (!isFalling && snap.mode !== 'airborne') {
+        this._dilationActive = false
+      }
+    }
+
+    const targetScale = this._dilationActive ? dilationScale : 1.0
+    const k = 1 - Math.exp(-blendSpeed * (1 / 60))
+    this._dilationCurrentScale += (targetScale - this._dilationCurrentScale) * k
   }
 }

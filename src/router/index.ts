@@ -28,6 +28,15 @@ export const router = createRouter({
       },
     },
     {
+      path: '/sandbox',
+      name: 'sandbox',
+      component: () => import('@/views/SandboxView.vue'),
+      beforeEnter: (_to, _from, next) => {
+        if (import.meta.env.DEV) next()
+        else next({ path: '/' })
+      },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/SettingsView.vue'),
