@@ -14,6 +14,7 @@ import {
   DEFAULT_SKINNED_CROUCH_TERRAIN_Y_DELTA,
   PlayerController,
   PLAYER_CAPSULE_HALF_HEIGHT,
+  type PlayerControllerEvent,
 } from '@base/player-three'
 import {
   EnvironmentRuntime,
@@ -159,7 +160,8 @@ export class GameplaySceneModule extends BaseModule {
   /** Merged per frame from `input:axis` `locomotion` (keyboard + gamepad may both emit). */
   private locoSprintOr = false
   private locoCrouchOr = false
-  private locoJogOr = false
+  /** Set from `consumeEvents` `landed` for the next `CharacterAnimationRig.update` only. */
+  private pendingLandForRig: { fallDistance: number; airTimeSeconds: number } | null = null
 
   /** Merged per frame from `input:axis` `look` (pointer lock / gamepad). */
   private lookYawAcc = 0
@@ -310,7 +312,7 @@ export class GameplaySceneModule extends BaseModule {
     }
 
     this.player.resetFacing(this.character.rotation.y)
-    this.animRig = new CharacterAnimationRig(this.character)
+    this.animRig = new CharacterAnimationRig(this.character, { debugClipResolution: true })
 
     this.initCamera(ctx.camera)
 
@@ -326,7 +328,6 @@ export class GameplaySceneModule extends BaseModule {
       if (e.axis === 'locomotion') {
         this.locoSprintOr ||= e.value.x > 0.5
         this.locoCrouchOr ||= e.value.y > 0.5
-        this.locoJogOr ||= (e.value.z ?? 0) > 0.5
       }
       if (e.axis === 'look') {
         if (this.gameplayCam.getMode() !== 'first-person') return
@@ -431,10 +432,8 @@ export class GameplaySceneModule extends BaseModule {
     const simDelta = this.computeSimDelta(delta)
     const sprintHeld = this.locoSprintOr
     const crouchHeld = this.locoCrouchOr
-    const jogHeld = this.locoJogOr
     this.locoSprintOr = false
     this.locoCrouchOr = false
-    this.locoJogOr = false
 
     if (this.gameplayCam.getMode() === 'first-person') {
       if (this.lookYawAcc !== 0 || this.lookPitchAcc !== 0) {
@@ -460,12 +459,16 @@ export class GameplaySceneModule extends BaseModule {
     const movementEvents = this.player.consumeEvents()
     this.handlePlayerEvents(movementEvents)
 
+    const land = this.pendingLandForRig
+    this.pendingLandForRig = null
+
     const snap = this.player.getSnapshot()
     this.animRig?.update(simDelta, this.character, snap.velocity, {
       crouch: snap.crouching,
       sprint: snap.sprinting,
       grounded: snap.grounded,
-      jog: jogHeld,
+      landFallDistance: land?.fallDistance,
+      landAirTimeSeconds: land?.airTimeSeconds,
       secondJumpTrigger: this.secondJumpAnimTrigger,
       edgeCatchTrigger: this.edgeCatchAnimTrigger,
       wallStumbleTrigger: this.wallStumbleAnimTrigger,
@@ -524,9 +527,7 @@ export class GameplaySceneModule extends BaseModule {
     return dot >= s.minDirectionDot
   }
 
-  private handlePlayerEvents(
-    events: Array<{ type: string; jumpIndex?: number; remainingExtraJumps?: number }>,
-  ): void {
+  private handlePlayerEvents(events: PlayerControllerEvent[]): void {
     for (const event of events) {
       if (event.type === 'jump_started') {
         this.tryOpenSecretWindowFromTakeoff()
@@ -557,6 +558,10 @@ export class GameplaySceneModule extends BaseModule {
         continue
       }
       if (event.type === 'landed') {
+        this.pendingLandForRig = {
+          fallDistance: event.fallDistance,
+          airTimeSeconds: event.airTimeSeconds,
+        }
         if (this.secretPendingWinOnLand) {
           this.context.eventBus.emit(GAME_EVENTS.REPORT_OUTCOME, {
             kind: 'win',

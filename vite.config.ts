@@ -34,6 +34,9 @@ const disablePwa =
 
 export default defineConfig(({ mode }) => {
   const base = viteBase()
+  /** App root (three-dreams/). Linked `@base/*` packages resolve under ../SHARED — allow FS + avoid broken `import.meta.url` in deps. */
+  const appRoot = fileURLToPath(new URL('.', import.meta.url))
+  const sharedRoot = resolve(appRoot, '../SHARED')
 
   return {
     base,
@@ -67,10 +70,29 @@ export default defineConfig(({ mode }) => {
       dedupe: ['three'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        /**
+         * Force Vite to load @base/player-three from TypeScript source rather than compiled
+         * dist/. Required so Vite transforms `import.meta.glob` in mixamoFbxClipUrls.ts —
+         * the glob is expanded relative to the source file's location, giving correct
+         * `@fs/` URLs for the package's `assets/` directory. Without this alias, Vite
+         * would pre-bundle the dist/ output where `import.meta.url` resolves incorrectly.
+         */
+        '@base/player-three': resolve(sharedRoot, 'packages/player-three/src/index.ts'),
+      },
+    },
+    server: {
+      fs: {
+        allow: [appRoot, sharedRoot],
       },
     },
     optimizeDeps: {
       include: ['three', '@base/threejs-engine'],
+      /**
+       * Prevent pre-bundling @base/player-three so Vite's transform pipeline can expand
+       * `import.meta.glob` in mixamoFbxClipUrls.ts relative to the source file location.
+       * Pre-bundling via esbuild would strip the glob and produce stale chunk-relative URLs.
+       */
+      exclude: ['@base/player-three'],
     },
   }
 })
