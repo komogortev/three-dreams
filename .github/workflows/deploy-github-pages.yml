@@ -17,8 +17,10 @@ permissions:
   id-token: write
 
 concurrency:
+  # Queue instead of cancel: cancelling mid-flight leaves a stale github-pages artifact
+  # from the completed build job, which causes deploy-pages to fail with "Artifact count is 2".
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
