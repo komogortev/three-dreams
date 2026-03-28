@@ -70,6 +70,14 @@ export default defineConfig(({ mode }) => {
       dedupe: ['three'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        /**
+         * Force Vite to load @base/player-three from TypeScript source rather than compiled
+         * dist/. Required so Vite transforms `import.meta.glob` in mixamoFbxClipUrls.ts —
+         * the glob is expanded relative to the source file's location, giving correct
+         * `@fs/` URLs for the package's `assets/` directory. Without this alias, Vite
+         * would pre-bundle the dist/ output where `import.meta.url` resolves incorrectly.
+         */
+        '@base/player-three': resolve(sharedRoot, 'packages/player-three/src/index.ts'),
       },
     },
     server: {
@@ -80,8 +88,9 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['three', '@base/threejs-engine'],
       /**
-       * `@base/player-three` builds FBX URLs with `new URL('../assets/...', import.meta.url)`.
-       * Pre-bundling into `.vite/deps` rewires `import.meta.url` to the chunk path → wrong asset base → 404 clips → T-pose.
+       * Prevent pre-bundling @base/player-three so Vite's transform pipeline can expand
+       * `import.meta.glob` in mixamoFbxClipUrls.ts relative to the source file location.
+       * Pre-bundling via esbuild would strip the glob and produce stale chunk-relative URLs.
        */
       exclude: ['@base/player-three'],
     },
