@@ -2,24 +2,25 @@
 
 ## Status
 
-_Last updated: 2026-03-28_
+_Last updated: 2026-03-29_
 
 **What's working:**
 - Scene registry covers all 5 scenes in GDD order. Atmosphere profiles in place (`realWorld`, `realWorldWarm`, `dreamWorld`).
 - Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). Spawn on road at hill slope start.
 - Scene-02: cliff procedural terrain, dreamWorld atmosphere. Lost-in-woods forest (4 scatter fields ~115 trees + rocks + stone pile). Exit ring at hilltop (x:10, y:8.6, z:-0.2 → scene-03). secretDoubleJump wired.
 - Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (x:0.6, y:-0.7, z:-8.5 → scene-01). Full 01→02→03→01 loop wired and position-tuned.
+- Phase 4A Step 3: `npcStubs` on `SceneGameplayPolicy` — capsule placeholders for old dad (scene-01) and young dad (scene-03); `fallRespawn` on scene-02 (Y < -15 → origin peak).
 - Exit zone system: glowing ring + 1.2s dwell trigger + `game:request-scene-change` → SceneView navigates cleanly.
 - Dev HUD: player X/Z/Y position readout (bottom-right, dev builds only).
 - Nav mesh `debugVisible` flag for Blender alignment sessions.
 - TypeScript build: all CI errors resolved (`snap.mode` → `snap.grounded`, `TerrainSampler` → `TerrainSurfaceSampler`, registry optional-field helpers).
 
-**What's broken / incomplete:** Scene-02 has no cliff GLB (forest is placeholder). Scenes 04–05 are structural stubs. All NPC models missing. Child avatar switch missing. GameLogicModule has no win/fail conditions. HUD is a stub.
+**What's broken / incomplete:** Scene-02 has no cliff GLB (forest is placeholder). Scenes 04–05 are structural stubs. NPCs are primitive capsules only — character models still missing. Child avatar switch missing. GameLogicModule has no win/fail conditions. HUD is a stub.
 
 ## Active Work
 
-- Phase 4A Step 2 complete — all three scene exit zones position-tuned and working
-- Next: NPC capsule stubs (old man scene-01, young dad scene-03)
+- Phase 4A Step 3 complete — NPC capsule stubs + scene-02 void fall respawn
+- Next: tune stub X/Z/Y with dev HUD if misaligned; scene-05 elder stubs or Phase 4B phone / photo markers
 
 ## Blockers & Open Questions
 
@@ -31,16 +32,12 @@ _Last updated: 2026-03-28_
 
 ## Next Session
 
-> **Phase 4A — Step 2 continued: exit zone tuning + NPC stubs.**
->
-> 1. **Tune exit zone coordinates**: load each scene, walk to the target location (hilltop / cliff edge / house side), read x/z from HUD, update `exitZones` in the scene's `gameplay` export.
-> 2. **NPC capsule stubs**: add old man placeholder (CapsuleGeometry) at known spawn near hilltop path in scene-01. Add young dad placeholder near lake dock in scene-03.
-> 3. **Scene-02 cliff respawn**: fall below Y=-15 → respawn at rock top (x:0, z:0). Requires adding a fall-reset trigger to GameplaySceneModule or GameLogicModule.
-> 4. **Source P1 assets in parallel**: child model (Mixamo or Quaternius), old man NPC, young dad NPC, elder NPCs.
+> **Phase 4A — Step 4 pick one:** (a) Walk scene-01 and scene-03, read player position vs capsule stubs from dev HUD, adjust `npcStubs` in each scene's `gameplay` export. (b) Add scene-05 elder `npcStubs` + bench placeholder follow-through. (c) Begin Phase 4B — photographable markers or phone recovery trigger on scene-03 per GDD. Continue sourcing P1 character models in parallel.
 
 ## Decision Log
 
 <!-- Append-only. One line per decision, newest first. -->
+- **2026-03-29** — `npcStubs` and `fallRespawn` on `GameplaySceneConfig` / `SceneGameplayPolicy`: placeholder capsules spawned at mount; scene-02 soft-death teleport at `GameplaySceneModule` tick (keeps `GameLogicModule` free of movement hooks).
 - **2026-03-28** — Scene-specific gameplay config co-located in each scene's `index.ts` (exports `gameplay: SceneGameplayPolicy`). Central `gameplayPolicy.ts` becomes a thin lookup delegate. Adding a new scene no longer requires touching a parallel config file.
 - **2026-03-28** — `SceneGameplayPolicy` type moved to `src/scenes/types.ts` to prevent circular dependency: `gameplayPolicy.ts → registry.ts → scene-02 → gameplayPolicy.ts`. Clean dependency chain: `types.ts → GameplaySceneModule` only.
 - **2026-03-28** — Atmosphere profiles (`realWorld`, `realWorldWarm`, `dreamWorld`) extracted to `atmosphereProfiles.ts`. Scenes spread profile + override. Two named profiles match roadmap spec; `realWorldWarm` added for scene-03 warm contrast.

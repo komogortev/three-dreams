@@ -153,6 +153,43 @@ export interface GameplaySceneConfig {
     slowmoScale: number
     slowmoMaxSeconds: number
   }
+  /**
+   * Placeholder NPC meshes (capsules) for layout until real characters load.
+   * World X/Z; Y from terrain sample at mount unless `y` is set.
+   *
+   * Transition path: stub (here) → SceneDescriptor.objects gltf entry (static) → NpcModule (behaviour).
+   */
+  npcStubs?: Array<{
+    x: number
+    z: number
+    y?: number
+    /** Cylinder length between capsule hemispheres. Default 0.85. */
+    capsuleLength?: number
+    /** Default 0.28. */
+    capsuleRadius?: number
+    color?: number
+  }>
+  /**
+   * Teleport the player when they fall below `triggerBelowY`.
+   *
+   * - `mode: 'fixed'`  — deterministic anchor (narrative reset, e.g. scene-02 rock).
+   * - `mode: 'zone'`   — random point inside one of the declared zones (lose-state
+   *   respawn in open spaces — pick a zone at random, then a uniform point inside it).
+   */
+  fallRespawn?: { triggerBelowY: number } & (
+    | {
+        mode: 'fixed'
+        respawnX: number
+        respawnZ: number
+        /** Overrides terrain sample at respawn XZ. */
+        respawnY?: number
+      }
+    | {
+        mode: 'zone'
+        /** At least one zone required. Reuses the scatter centerX/centerZ/radius idiom. */
+        zones: Array<{ centerX: number; centerZ: number; radius: number }>
+      }
+  )
 }
 
 // ─── Fall time dilation ──────────────────────────────────────────────────────
@@ -264,6 +301,8 @@ export class GameplaySceneModule extends BaseModule {
   private sampler?: TerrainSurfaceSampler
   protected setSampler(s: TerrainSurfaceSampler | undefined): void { this.sampler = s }
   private effectiveRadius = 50
+  /** Root-to-feet offset in world Y — matches {@link PlayerController} terrain snap. */
+  private characterTerrainYOffset = PLAYER_CAPSULE_HALF_HEIGHT
 
   private offInputAxis: (() => void) | null = null
   private offInputAction: (() => void) | null = null
@@ -431,6 +470,7 @@ export class GameplaySceneModule extends BaseModule {
       this.sampler         = result.sampler
       this.effectiveRadius = result.effectiveRadius
       this.player.setTerrainYOffset(result.characterTerrainYOffset)
+      this.characterTerrainYOffset = result.characterTerrainYOffset
       const ch = this.descriptor?.character
       const fp =
         ch?.terrainFootprintRadius ?? (ch?.modelUrl?.trim() ? 0.22 : 0)
@@ -503,6 +543,8 @@ export class GameplaySceneModule extends BaseModule {
         orb.position.set(s.x, s.y, s.z)
         ctx.scene.add(orb)
       }
+
+      this.mountNpcStubs(ctx)
     } else {
       this.effectiveRadius = this.cfg.groundRadius
       this.character = this.buildDefaultScene(ctx)
@@ -582,6 +624,36 @@ export class GameplaySceneModule extends BaseModule {
     ctx.scene.fog        = null
   }
 
+  // ─── NPC stubs ────────────────────────────────────────────────────────────────
+
+  /**
+   * Spawn capsule placeholder meshes for each entry in {@link GameplaySceneConfig.npcStubs}.
+   * Called from `onMount` after the nav mesh and sampler are ready.
+   *
+   * Transition: when a real model is available, remove the stub from the config and add a
+   * `{ type: 'gltf', url: '/characters/npc/<name>.glb', x, z }` entry to the SceneDescriptor
+   * objects array — no module changes required.
+   */
+  private mountNpcStubs(ctx: ThreeContext): void {
+    if (!this.cfg.npcStubs?.length) return
+    for (const npc of this.cfg.npcStubs) {
+      const len = npc.capsuleLength ?? 0.85
+      const rad = npc.capsuleRadius ?? 0.28
+      const groundY = npc.y ?? this.sampler?.sample(npc.x, npc.z) ?? 0
+      const mesh = new THREE.Mesh(
+        new THREE.CapsuleGeometry(rad, len, 6, 12),
+        new THREE.MeshStandardMaterial({
+          color: npc.color ?? 0x8b7355,
+          roughness: 0.75,
+          metalness: 0.05,
+        }),
+      )
+      // Capsule geometry origin is at the centre of the segment; shift up so feet land on groundY.
+      mesh.position.set(npc.x, groundY + rad + len * 0.5, npc.z)
+      ctx.scene.add(mesh)
+    }
+  }
+
   // ─── Default flat-disc scene (no descriptor) ─────────────────────────────────
 
   private buildDefaultScene(ctx: ThreeContext): THREE.Object3D {
@@ -643,6 +715,8 @@ export class GameplaySceneModule extends BaseModule {
     const crouchHeld = this.locoCrouchOr
     this.locoSprintOr = false
     this.locoCrouchOr = false
+
+    this.tickFallRespawn()
 
     if (this.lookYawAcc !== 0 || this.lookPitchAcc !== 0) {
       if (this.gameplayCam.getMode() === 'first-person') {
@@ -729,6 +803,44 @@ export class GameplaySceneModule extends BaseModule {
     }
     // Apply fall dilation (multiplicative; 1.0 when inactive).
     return d * this._dilationCurrentScale
+  }
+
+  private tickFallRespawn(): void {
+    const fr = this.cfg.fallRespawn
+    if (!fr || this.character.position.y >= fr.triggerBelowY) return
+
+    let gx: number
+    let gz: number
+    let groundY: number
+
+    if (fr.mode === 'fixed') {
+      gx = fr.respawnX
+      gz = fr.respawnZ
+      groundY = fr.respawnY ?? (this.sampler ? this.sampler.sample(gx, gz) : 0)
+    } else {
+      // Pick a random zone, then a uniform random point inside it (rejection sample).
+      const zone = fr.zones[Math.floor(Math.random() * fr.zones.length)]!
+      const angle = Math.random() * Math.PI * 2
+      const dist  = Math.sqrt(Math.random()) * zone.radius
+      gx = zone.centerX + Math.cos(angle) * dist
+      gz = zone.centerZ + Math.sin(angle) * dist
+      groundY = this.sampler ? this.sampler.sample(gx, gz) : 0
+    }
+
+    this.character.position.set(gx, groundY + this.characterTerrainYOffset, gz)
+    this.player.resetFacing(this.player.getFacing())
+    this.slowmoRemainingSeconds = 0
+    this.secretWindowOpen = false
+    this.secretWindowTimer = 0
+    this.secretSecondJumpTriggered = false
+    this.secretPendingWinOnLand = false
+    this.secretConsumed = false
+
+    if (import.meta.env.DEV) {
+      console.log(
+        `[FallRespawn] y < ${fr.triggerBelowY} (${fr.mode}) → (${gx.toFixed(1)}, ${groundY.toFixed(1)}, ${gz.toFixed(1)})`,
+      )
+    }
   }
 
   private tickExitZones(delta: number, ctx: ThreeContext): void {

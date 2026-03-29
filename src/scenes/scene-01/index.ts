@@ -38,6 +38,11 @@ export const gameplay: SceneGameplayPolicy = {
   exitZones: [
     { x: 5, y: 22.8, z: -36, radius: 3, targetSceneId: 'scene-02' },
   ],
+
+  // Dad (old form) — on the ascent path between road spawn and hilltop exit (tune with dev HUD).
+  npcStubs: [
+    { x: -18, z: -14, color: 0x5c5348, capsuleLength: 0.75, capsuleRadius: 0.26 },
+  ],
 }
 
 /**
