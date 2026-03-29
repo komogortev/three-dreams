@@ -12,9 +12,8 @@ import {
 import { GameplaySceneModule } from '@/modules/GameplaySceneModule'
 import { GameLogicModule } from '@/modules/GameLogicModule'
 import { GAME_EVENTS } from '@/game/sessionTypes'
-import { scene01 } from '@/scenes/scene-01'
 import { getSceneGameplayPolicy } from '@/scenes/gameplayPolicy'
-import { getSceneDescriptor } from '@/scenes/registry'
+import { getSceneEntry } from '@/scenes/registry'
 import { useShellContext } from '@/composables/useShellContext'
 import { useShellStore } from '@/stores/shell'
 import { useGameStore } from '@/stores/game'
@@ -31,9 +30,11 @@ const audioModule = new AudioModule()
 
 const initialSceneId = gameStore.pullBootstrapSceneId() ?? 'scene-01'
 const gameLogic = new GameLogicModule({ initialSceneId })
+const sceneRegistryEntry = getSceneEntry(initialSceneId)
 const sceneGameplayPolicy = getSceneGameplayPolicy(initialSceneId)
 const sceneModule = new GameplaySceneModule({
-  descriptor: getSceneDescriptor(initialSceneId) ?? scene01,
+  descriptor: sceneRegistryEntry?.descriptor,
+  navigationMesh: sceneRegistryEntry?.navigationMesh,
   cameraMode: 'first-person',
   cameraPreset: 'close-follow',
   /** Root is feet-aligned after SceneBuilder; tuned vs Remy 1.78m — slight lift clears neck band at walk. */

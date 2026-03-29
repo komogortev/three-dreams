@@ -1,77 +1,63 @@
 import type { SceneDescriptor } from '@base/scene-builder'
 import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
+import { dreamWorld } from '@/scenes/atmosphereProfiles'
+import type { SceneGameplayPolicy } from '@/scenes/types'
 
+/**
+ * Scene 02 — The Cliff (Dream World / Enter Dreams).
+ *
+ * Visual: procedural heightmap terrain; no GLB yet (cliff asset missing).
+ * Atmosphere: dreamWorld — cold, desaturated, dense blue-grey fog.
+ * Mechanics: secretDoubleJump — mid-fall second jump exits the scene.
+ *
+ * No objects — the cliff is stark and intentionally empty.
+ * Death trigger (fall → respawn) wired via GameLogicModule in Phase 4A.
+ */
 export const scene02: SceneDescriptor = {
   terrain: {
-    radius: 90,
-    resolution: 128,
-    seaLevel: 0,
-    baseColor: 0xdcc495,
-    baseOpacity: 0.55,
-    waterColor: 0x0a1c38,
-    waterOpacity: 0.72,
+    radius: 50,
+    resolution: 180,
+    seaLevel: -20,
+    baseColor: 0x2a3540,
     features: [
       {
         type: 'heightmap',
-        url: '/terrains/heatmap-scene-02.png',
+        url: '/terrains/heatmap-scene-1.png',
         amplitude: 10,
-        offsetZ: -22,
       },
     ],
   },
-  atmosphere: {
-    dynamicSky: true,
-    fogColor: 0x1a2838,
-    fogDensity: 0.014,
-    ambientColor: 0x445566,
-    ambientIntensity: 0.95,
-    hemisphereSkyColor: 0xb8c8e8,
-    hemisphereGroundColor: 0x354030,
-    hemisphereIntensity: 0.5,
-    time: {
-      initialPhase: 0.9426,
-      phaseSpeed: 0.004,
-    },
-    sky: {
-      model: 'physical',
-    },
-    sunMoon: {
-      sunIntensity: 1.1,
-      moonIntensity: 0.24,
-    },
-    clouds: {
-      enabled: true,
-      height: 130,
-      scale: 820,
-      windX: 0.25,
-      windZ: 0.08,
-      scrollSpeed: 0.03,
-      opacity: 0.6,
-      visibleFrom: 0,
-      visibleTo: 1,
-      densityAtNight: 0.35,
-      densityAtNoon: 1,
-    },
-  },
+  atmosphere: dreamWorld,
   character: {
-    startPosition: [4, 8],
-    modelUrl: '/Remy.fbx',
+    startPosition: [0, 0],
+    modelUrl: encodeURI('/Remy.fbx'),
     modelScale: 1,
     modelFitHeight: 1.78,
     pruneExtraSkinnedMeshes: false,
-    rotationY: 3.1416,
+    rotationY: Math.PI,
     animationClipUrls: [...MIXAMO_FBX_CLIP_URLS],
   },
-  objects: [
-    {
-      type: 'gltf',
-      url: '/scenes/scene-02/house_on_the_hill.glb',
-      x: 10.39,
-      z: -21.24,
-      scale: 1.7,
-      rotationY: -1.43,
-      /** Heightmap can sample below seaLevel at this XZ; still place the environment mesh. */
-      allowBelowSeaLevel: true,
-    },
-  ],
+}
+
+/**
+ * Scene 02 gameplay: the secret double-jump mechanic.
+ *
+ * Player discovers that a mid-fall second jump exits the endless cliff loop.
+ * This is the scene's core mechanic and the game's first mechanical statement.
+ * Spread into GameplaySceneModule constructor via registry.
+ */
+export const gameplay: SceneGameplayPolicy = {
+  secretDoubleJump: {
+    enabled: true,
+    activationCenterX: 0,
+    activationCenterZ: 0,
+    activationRadius: 48,
+    requiredDirectionX: 1,
+    requiredDirectionZ: 0,
+    minDirectionDot: 0.62,
+    preFallVyThreshold: -0.2,
+    postFallGraceSeconds: 0.34,
+    slowmoScale: 0.36,
+    slowmoMaxSeconds: 1.5,
+  },
 }

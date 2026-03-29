@@ -1,25 +1,12 @@
-import type { GameplaySceneConfig } from '@/modules/GameplaySceneModule'
+import { getSceneEntry } from '@/scenes/registry'
 
-export type SceneGameplayPolicy = Pick<GameplaySceneConfig, 'secretDoubleJump'>
+export type { SceneGameplayPolicy } from '@/scenes/types'
 
-const SCENE_GAMEPLAY_POLICIES: Record<string, SceneGameplayPolicy> = {
-  'scene-01': {
-    secretDoubleJump: {
-      enabled: true,
-      activationCenterX: 0,
-      activationCenterZ: 0,
-      activationRadius: 48,
-      requiredDirectionX: 1,
-      requiredDirectionZ: 0,
-      minDirectionDot: 0.62,
-      preFallVyThreshold: -0.2,
-      postFallGraceSeconds: 0.34,
-      slowmoScale: 0.36,
-      slowmoMaxSeconds: 1.5,
-    },
-  },
-}
-
-export function getSceneGameplayPolicy(sceneId: string): SceneGameplayPolicy | undefined {
-  return SCENE_GAMEPLAY_POLICIES[sceneId]
+/**
+ * Returns the scene-local gameplay overrides for a given scene ID.
+ * Config is co-located in each scene's index.ts and registered via the scene registry.
+ * Spread the result into GameplaySceneModule constructor to activate scene mechanics.
+ */
+export function getSceneGameplayPolicy(sceneId: string) {
+  return getSceneEntry(sceneId)?.gameplay
 }
