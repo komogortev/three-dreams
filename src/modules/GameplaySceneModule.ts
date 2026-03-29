@@ -22,6 +22,7 @@ import {
   type SceneDescriptor,
   type TerrainSampler,
 } from '@base/scene-builder'
+import { MeshTerrainSampler } from '@/utils/MeshTerrainSampler'
 import { createSceneBuildOptions } from '@/utils/sceneBuildOptions'
 import { GAME_EVENTS } from '@/game/sessionTypes'
 
@@ -68,10 +69,40 @@ export interface GameplaySceneConfig {
    * If omitted and the descriptor loads a `modelUrl`, {@link DEFAULT_SKINNED_CROUCH_TERRAIN_Y_DELTA} is applied automatically.
    */
   crouchTerrainYOffsetDelta?: number
+  /**
+   * Steepest slope the character can walk up before movement is blocked as "wall".
+   * Default in PlayerController is 35° — works for gentle hills.
+   * Increase to 55–65° for scenes with steep navigable terrain (e.g. hillside ascent).
+   */
+  maxWalkableSlopeDeg?: number
+  /**
+   * Drop threshold (metres) before the cliff-edge catch blocks walk/jog movement.
+   * Default is feetToHips × 2/3 ≈ 0.59m — suited for flat terrain with real cliff edges.
+   * For steep downhill: set to probeHorizon × tan(slopeDeg).
+   * At 55° slope with default probe multiplier: ~1.78 × tan(55°) ≈ 2.55m.
+   * Sprint always bypasses this check regardless of threshold.
+   */
+  cliffDropCatchThreshold?: number
   /** Log jump arc telemetry (peak, fall dist, air time) on landing. */
   debugJumpArc?: boolean
   /** Log resolved animation clip names on CharacterAnimationRig init. */
   debugClipResolution?: boolean
+  /**
+   * Navigation / collision mesh that replaces the procedural `TerrainSampler`.
+   * Load a GLB whose meshes represent the exact walkable surfaces (ground, roads, rooftops).
+   * The mesh is placed with the same transform as the visual GLB so physics aligns.
+   * The root is added to the scene invisible — physics only, no visual contribution.
+   */
+  navigationMesh?: {
+    url: string
+    x?: number
+    y?: number
+    z?: number
+    scale?: number
+    rotationY?: number
+    /** Set true temporarily to render the nav mesh as a wireframe overlay for alignment debugging. */
+    debugVisible?: boolean
+  }
   /**
    * Scene-local secret double-jump policy.
    * Keep this feature scenario-owned here; shared packages expose only generic movement capability.
@@ -289,6 +320,8 @@ export class GameplaySceneModule extends BaseModule {
       terrainYOffset: PLAYER_CAPSULE_HALF_HEIGHT,
       debugMovement: playerMovementDebugEnabled(),
       debugJumpArc: this.cfg.debugJumpArc,
+      maxWalkableSlopeDeg: this.cfg.maxWalkableSlopeDeg,
+      cliffDropCatchThreshold: this.cfg.cliffDropCatchThreshold,
       extraJumps: 1,
       canUseExtraJump: () => this.canUseSecretExtraJumpNow(),
     })
@@ -368,6 +401,34 @@ export class GameplaySceneModule extends BaseModule {
             : 0
       this.player.setCrouchTerrainYOffsetDelta(crouchY)
       this.environment      = EnvironmentRuntime.attachGame(ctx, this.descriptor.atmosphere ?? {})
+
+      if (this.cfg.navigationMesh) {
+        const nav = this.cfg.navigationMesh
+        const gltf = await ctx.assets.loadGLTF(nav.url)
+        const navRoot = gltf.scene
+        navRoot.position.set(nav.x ?? 0, nav.y ?? 0, nav.z ?? 0)
+        navRoot.scale.setScalar(nav.scale ?? 1)
+        navRoot.rotation.y = nav.rotationY ?? 0
+        if (nav.debugVisible) {
+          // Wireframe overlay so you can see nav mesh alignment against the visual GLB.
+          // Set debugVisible: false (or remove) once alignment is confirmed.
+          navRoot.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              const mesh = child as THREE.Mesh
+              mesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
+            }
+          })
+        } else {
+          // Hide root AND every child — GLTF nodes can carry their own visible flag
+          // from Blender which survives the parent-level toggle.
+          navRoot.traverse((child) => { child.visible = false })
+        }
+        ctx.scene.add(navRoot)
+        navRoot.updateMatrixWorld(true)
+        // Procedural sampler stays as fallback — covers steep hill faces where
+        // top-down raycasting misses. Mesh wins on flat/walkable surfaces.
+        this.sampler = MeshTerrainSampler.fromRoot(navRoot, this.sampler ?? null)
+      }
     } else {
       this.effectiveRadius = this.cfg.groundRadius
       this.character = this.buildDefaultScene(ctx)
