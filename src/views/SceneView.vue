@@ -105,11 +105,16 @@ onMounted(async () => {
   await engine.mount(container.value, context)
   await engine.mountChild('input', inputModule)
   await engine.mountChild('audio', audioModule)
+  // Resume AudioContext immediately — Chrome suspends it by default until a
+  // user gesture is confirmed. The Play button click counts, but the context
+  // must be explicitly unlocked after construction.
+  await audioModule.resume()
   await engine.mountChild('game-logic', gameLogic)
   await engine.mountChild('scene', sceneModule)
   worldReady.value = true
 
-  container.value.focus()
+  // Guard against component unmounting mid-await (navigation race / double-click).
+  container.value?.focus()
 
   const offAxis = context.eventBus.on('input:axis', (raw) => {
     const e = raw as { axis: string; value: { x: number; y: number } }
