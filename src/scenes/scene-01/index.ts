@@ -92,7 +92,7 @@ export const scene01: SceneDescriptor = {
   objects: [
     {
       type: 'gltf',
-      url: '/scenes/scene-01/house_on_the_hill.glb',
+      url: '/scenes/scene-01/house_on_the_hill_4k.glb',
       x: GLB_X,
       z: GLB_Z,
       scale: GLB_SCALE,
