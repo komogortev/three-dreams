@@ -12,7 +12,7 @@ import type { SceneGameplayPolicy } from '@/scenes/types'
  *
  * Objects: editor-sourced scatter forest (lost-in-woods placeholder).
  * Rocks and stone pile anchor the hilltop. Trees populate the western slopes.
- * Death trigger (fall → respawn) wired via GameLogicModule in Phase 4A.
+ * Fall below Y threshold → respawn at heightmap peak (GameplaySceneModule fallRespawn).
  */
 export const scene02: SceneDescriptor = {
   terrain: {
@@ -118,6 +118,15 @@ export const gameplay: SceneGameplayPolicy = {
   exitZones: [
     { x: 10, y: 8.6, z: -0.2, radius: 3, targetSceneId: 'scene-03', ringColor: 0x88ccff },
   ],
+
+  // Void fall — narrative reset to rock top (endless loop until double-jump discovered).
+  // mode: 'fixed' — always returns to the same rock; zone respawn is not appropriate here.
+  fallRespawn: {
+    triggerBelowY: -15,
+    mode: 'fixed',
+    respawnX: 0,
+    respawnZ: 0,
+  },
 
   secretDoubleJump: {
     enabled: true,

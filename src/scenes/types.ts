@@ -13,4 +13,6 @@ export type SceneGameplayPolicy = Pick<
   | 'cliffDropCatchThreshold'
   | 'exitZones'
   | 'sunOrb'
+  | 'npcStubs'
+  | 'fallRespawn'
 >

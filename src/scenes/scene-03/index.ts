@@ -22,9 +22,13 @@ export const navigationMesh = {
  */
 export const gameplay: SceneGameplayPolicy = {
   // ── Exit: circle next to house → return to scene-01 (full loop). ─────────
-  // PLACEHOLDER — walk to the house, read x/z from HUD, paste here.
   exitZones: [
     { x: 0.6, y: -0.7, z: -8.5, radius: 3, targetSceneId: 'scene-01', ringColor: 0xffaa44 },
+  ],
+
+  // Young dad — lakeside / dock activity area (tune with dev HUD).
+  npcStubs: [
+    { x: 6.5, z: 4.6, y: -0.2, color: 0xc4785c, capsuleLength: 0.72, capsuleRadius: 0.26 },
   ],
 }
 
@@ -52,7 +56,7 @@ export const scene03: SceneDescriptor = {
   },
   atmosphere: realWorldWarm,
   character: {
-    startPosition: [0, 55],
+    startPosition: [8.2, 5.4],
     modelUrl: encodeURI('/Remy.fbx'),
     modelScale: 1,
     modelFitHeight: 1.78,
