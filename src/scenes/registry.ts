@@ -1,7 +1,8 @@
 import type { SceneDescriptor } from '@base/scene-builder'
+import type { SceneGameplayPolicy } from '@/scenes/types'
 import { scene01, navigationMesh as scene01NavMesh, gameplay as scene01gameplay } from '@/scenes/scene-01'
 import { scene02, gameplay as scene02gameplay } from '@/scenes/scene-02'
-import { scene03, navigationMesh as scene03NavMesh } from '@/scenes/scene-03'
+import { scene03, navigationMesh as scene03NavMesh, gameplay as scene03gameplay } from '@/scenes/scene-03'
 import { scene04 } from '@/scenes/scene-04'
 import { scene05 } from '@/scenes/scene-05'
 
@@ -34,6 +35,7 @@ export const SCENE_REGISTRY = [
     exportSymbol: 'scene03',
     descriptor: scene03,
     navigationMesh: scene03NavMesh,
+    gameplay: scene03gameplay,
   },
   {
     id: 'scene-04',
@@ -59,4 +61,21 @@ export function getSceneEntry(id: string): SceneRegistryEntry | undefined {
 
 export function getSceneDescriptor(id: string): SceneDescriptor | undefined {
   return getSceneEntry(id)?.descriptor
+}
+
+/** Returns the scene-local gameplay policy, or undefined for scenes without one. */
+export function getSceneGameplayPolicy(id: string): SceneGameplayPolicy | undefined {
+  const entry = getSceneEntry(id)
+  if (!entry || !('gameplay' in entry)) return undefined
+  return (entry as { gameplay: SceneGameplayPolicy }).gameplay
+}
+
+/** Returns the navigation mesh config, or undefined for scenes without one. */
+export function getSceneNavigationMesh(id: string) {
+  const entry = getSceneEntry(id)
+  if (!entry || !('navigationMesh' in entry)) return undefined
+  return (entry as { navigationMesh: NonNullable<unknown> }).navigationMesh as {
+    url: string; x?: number; y?: number; z?: number
+    scale?: number; rotationY?: number; debugVisible?: boolean
+  }
 }

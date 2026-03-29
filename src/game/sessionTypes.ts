@@ -61,6 +61,12 @@ export interface GameSessionSnapshot {
   mechanicFlags: Record<string, boolean>
 }
 
+/** Payload for {@link GAME_EVENTS.REQUEST_SCENE_CHANGE}. */
+export interface GameSceneChangeRequestPayload {
+  /** Target scene id to load on the next SceneView mount. */
+  targetSceneId: string
+}
+
 /** Stable EventBus names — use these instead of string literals at call sites. */
 export const GAME_EVENTS = {
   LOGIC_READY: 'game:logic-ready',
@@ -73,6 +79,8 @@ export const GAME_EVENTS = {
   REQUEST_RETRY: 'game:request-retry',
   REQUEST_EXIT: 'game:request-exit',
   REPORT_OUTCOME: 'game:report-outcome',
+  /** Emitted by GameplaySceneModule when a player dwells in an exit zone. */
+  REQUEST_SCENE_CHANGE: 'game:request-scene-change',
 } as const
 
 export type GameEventName = (typeof GAME_EVENTS)[keyof typeof GAME_EVENTS]

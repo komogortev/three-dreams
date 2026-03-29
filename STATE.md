@@ -4,15 +4,22 @@
 
 _Last updated: 2026-03-28_
 
-**What's working:** Scene registry extended to all 5 scenes. Scene numbering reconciled — code now matches game design order (scene-01 = house on hill, scene-02 = cliff/dream). Atmosphere profile system added (`realWorld`, `realWorldWarm`, `dreamWorld`). Gameplay policy co-located in scene files (not a central policy file). All 5 scene descriptors exist and compile. GLB paths corrected (house_on_hill.glb now from `/scenes/scene-01/`). Scene-03 includes lake swimmable volume. Menu correctly stages `scene-01` as game entry point.
+**What's working:**
+- Scene registry covers all 5 scenes in GDD order. Atmosphere profiles in place (`realWorld`, `realWorldWarm`, `dreamWorld`).
+- Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). Spawn on road at hill slope start.
+- Scene-02: cliff procedural terrain, dreamWorld atmosphere. Lost-in-woods forest (4 scatter fields ~115 trees + rocks + stone pile). Exit ring at hilltop (x:10, y:8.6, z:-0.2 → scene-03). secretDoubleJump wired.
+- Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (x:0.6, y:-0.7, z:-8.5 → scene-01). Full 01→02→03→01 loop wired and position-tuned.
+- Exit zone system: glowing ring + 1.2s dwell trigger + `game:request-scene-change` → SceneView navigates cleanly.
+- Dev HUD: player X/Z/Y position readout (bottom-right, dev builds only).
+- Nav mesh `debugVisible` flag for Blender alignment sessions.
+- TypeScript build: all CI errors resolved (`snap.mode` → `snap.grounded`, `TerrainSampler` → `TerrainSurfaceSampler`, registry optional-field helpers).
 
-**What's broken / incomplete:** Scene-01 and scene-05 use approximate heightmap physics (not GLB ground mesh) — Blender extraction pending. Scene-02 (cliff) has no GLB yet. Scenes 03–05 are structural stubs — no NPCs, no game mechanics, no exit conditions wired. Child character model missing (scene-03 avatar switch). All NPC models missing. `GameLogicModule` has no win/fail conditions. HUD is a stub.
+**What's broken / incomplete:** Scene-02 has no cliff GLB (forest is placeholder). Scenes 04–05 are structural stubs. All NPC models missing. Child avatar switch missing. GameLogicModule has no win/fail conditions. HUD is a stub.
 
 ## Active Work
 
-- Phase 4A step 1 complete — scene reconciliation + registry extension
-- Next: scene authoring passes (dead sun, NPC stubs, exit conditions) pending asset sourcing
-- Blender extraction of ground meshes from house_on_hill.glb and house_on_lake.glb — user-driven parallel track
+- Phase 4A Step 2 complete — all three scene exit zones position-tuned and working
+- Next: NPC capsule stubs (old man scene-01, young dad scene-03)
 
 ## Blockers & Open Questions
 
@@ -24,11 +31,11 @@ _Last updated: 2026-03-28_
 
 ## Next Session
 
-> **Phase 4A — Step 2: Scene authoring + exit conditions.**
+> **Phase 4A — Step 2 continued: exit zone tuning + NPC stubs.**
 >
-> 1. **Blender extraction** (user-driven, high-impact): open `house_on_the_hill.glb` in Blender → check Outliner for mesh layers → extract ground mesh → export as `scene-01-ground.glb` → update scene-01 terrain to use extracted mesh for exact physics. Repeat for `house_on_lake.glb`.
-> 2. **Scene 01 authoring**: add dead sun emissive disk mesh to scene-01 objects (Three.js PlaneGeometry + emissive material, positioned in sky above hilltop). Add old man NPC stub (primitive capsule at known spawn point).
-> 3. **Scene exit conditions**: scene-01 hilltop trigger → `game:scene-changed` to scene-02. Scene-02 death reset (fall → respawn on rock) — requires `GameLogicModule` wiring.
+> 1. **Tune exit zone coordinates**: load each scene, walk to the target location (hilltop / cliff edge / house side), read x/z from HUD, update `exitZones` in the scene's `gameplay` export.
+> 2. **NPC capsule stubs**: add old man placeholder (CapsuleGeometry) at known spawn near hilltop path in scene-01. Add young dad placeholder near lake dock in scene-03.
+> 3. **Scene-02 cliff respawn**: fall below Y=-15 → respawn at rock top (x:0, z:0). Requires adding a fall-reset trigger to GameplaySceneModule or GameLogicModule.
 > 4. **Source P1 assets in parallel**: child model (Mixamo or Quaternius), old man NPC, young dad NPC, elder NPCs.
 
 ## Decision Log

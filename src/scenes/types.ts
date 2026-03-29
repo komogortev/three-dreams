@@ -8,5 +8,9 @@ import type { GameplaySceneConfig } from '@/modules/GameplaySceneModule'
  */
 export type SceneGameplayPolicy = Pick<
   GameplaySceneConfig,
-  'secretDoubleJump' | 'maxWalkableSlopeDeg' | 'cliffDropCatchThreshold'
+  | 'secretDoubleJump'
+  | 'maxWalkableSlopeDeg'
+  | 'cliffDropCatchThreshold'
+  | 'exitZones'
+  | 'sunOrb'
 >

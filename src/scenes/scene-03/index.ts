@@ -20,7 +20,13 @@ export const navigationMesh = {
  * Scene 03 gameplay overrides.
  * Gentle lakeside terrain — default 35° slope limit is adequate.
  */
-export const gameplay: SceneGameplayPolicy = {}
+export const gameplay: SceneGameplayPolicy = {
+  // ── Exit: circle next to house → return to scene-01 (full loop). ─────────
+  // PLACEHOLDER — walk to the house, read x/z from HUD, paste here.
+  exitZones: [
+    { x: 0.6, y: -0.7, z: -8.5, radius: 3, targetSceneId: 'scene-01', ringColor: 0xffaa44 },
+  ],
+}
 
 /**
  * Scene 03 — House on the Lake (Real World / Memory).

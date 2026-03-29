@@ -9,6 +9,12 @@ export const MIXAMO_REMY_FBX = encodeURI('/Remy.fbx')
 /** Mixamo clips under `public/fbx/` merged onto Remy (same rig). */
 export const MIXAMO_ANIMATION_CLIP_URLS: string[] = [...MIXAMO_FBX_CLIP_URLS]
 
+/** GLB world transform — shared by visual mesh, nav mesh, and derived world positions. */
+const GLB_SCALE    = 1.955   // 1.7 × 1.15 (+15 %)
+const GLB_X        = 10.39
+const GLB_Z        = -21.24
+const GLB_ROTATION = -1.43
+
 /**
  * Scene 01 gameplay overrides.
  * High slope limit — the hill is steep and fully explorable off-path.
@@ -17,6 +23,21 @@ export const MIXAMO_ANIMATION_CLIP_URLS: string[] = [...MIXAMO_FBX_CLIP_URLS]
 export const gameplay: SceneGameplayPolicy = {
   maxWalkableSlopeDeg: 55,
   cliffDropCatchThreshold: 2.6,
+
+  // ── Dead sun — amber disk motionless in the sky above the hill. ──────────
+  sunOrb: {
+    x: 30,
+    y: 70,
+    z: -80,
+    radius: 14,
+    color: 0xff8c00,
+  },
+
+  // ── Exit btn: stand on hilltop ring → enter dream world (scene-02). ─────
+  // Positions scaled 1.15× outward from GLB origin (10.39, -21.24).
+  exitZones: [
+    { x: 5, y: 22.8, z: -36, radius: 3, targetSceneId: 'scene-02' },
+  ],
 }
 
 /**
@@ -26,11 +47,11 @@ export const gameplay: SceneGameplayPolicy = {
  */
 export const navigationMesh = {
   url: '/scenes/scene-01/house_on_the_hill_mesh_ground.glb',
-  x: 10.39,
+  x: GLB_X,
   y: 0,
-  z: -21.24,
-  scale: 1.7,
-  rotationY: -1.43,
+  z: GLB_Z,
+  scale: GLB_SCALE,
+  rotationY: GLB_ROTATION,
 } as const
 
 /**
@@ -38,10 +59,7 @@ export const navigationMesh = {
  *
  * Visual: house_on_the_hill.glb overlay; heightmap drives physics ground.
  * Atmosphere: realWorld — amber-ochre fog, cold autumn, static sky.
- * Character: adult Remy, spawns at base of hill.
- *
- * Blender prep target: extract ground mesh from GLB for exact physics.
- * Dead sun: emissive disk mesh — added as NPC/object stub in Phase 4A.
+ * Character: adult Remy, spawns on road at base of hill slope.
  */
 export const scene01: SceneDescriptor = {
   terrain: {
@@ -63,7 +81,7 @@ export const scene01: SceneDescriptor = {
   },
   atmosphere: realWorld,
   character: {
-    startPosition: [4, 8],
+    startPosition: [-52, 9],
     modelUrl: MIXAMO_REMY_FBX,
     modelScale: 1,
     modelFitHeight: 1.78,
@@ -75,10 +93,10 @@ export const scene01: SceneDescriptor = {
     {
       type: 'gltf',
       url: '/scenes/scene-01/house_on_the_hill.glb',
-      x: 10.39,
-      z: -21.24,
-      scale: 1.7,
-      rotationY: -1.43,
+      x: GLB_X,
+      z: GLB_Z,
+      scale: GLB_SCALE,
+      rotationY: GLB_ROTATION,
       allowBelowSeaLevel: true,
     },
   ],
