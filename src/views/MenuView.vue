@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
+import { SCENE_REGISTRY } from '@/scenes/registry'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -16,9 +17,8 @@ function playNew(): void {
   void router.push('/game')
 }
 
-/** Dev / test: FPV in scene 2 without using the editor working-scene switch. */
-function playScene2Test(): void {
-  gameStore.stageInitialSceneForNextPlay('scene-02')
+function jumpToScene(sceneId: string): void {
+  gameStore.stageInitialSceneForNextPlay(sceneId)
   void router.push('/game')
 }
 
@@ -36,7 +36,7 @@ async function continueGame(): Promise<void> {
   <div class="flex flex-col items-center justify-center min-h-screen bg-zinc-950 gap-4 select-none">
     <div class="flex flex-col items-center gap-2 mb-8">
       <h1 class="text-5xl font-bold tracking-tight text-white">Three Dreams</h1>
-      <p class="text-xs font-medium tracking-[0.3em] uppercase text-zinc-500">Scene 1 · cliff · @base</p>
+      <p class="text-xs font-medium tracking-[0.3em] uppercase text-zinc-500">Three Dreams · @base</p>
     </div>
 
     <div class="flex flex-col gap-3 w-52">
@@ -60,14 +60,20 @@ async function continueGame(): Promise<void> {
       >
         Continue
       </button>
-      <button
-        v-if="isDev"
-        class="w-full px-6 py-3 bg-amber-700/90 hover:bg-amber-600 active:bg-amber-800 text-white text-sm font-semibold rounded-xl transition-colors"
-        type="button"
-        @click="playScene2Test"
-      >
-        Play scene 2 (test)
-      </button>
+      <template v-if="isDev">
+        <div class="flex flex-col gap-1 pt-1">
+          <p class="text-[10px] font-mono uppercase tracking-widest text-zinc-500 text-center">Scenes</p>
+          <button
+            v-for="entry in SCENE_REGISTRY"
+            :key="entry.id"
+            class="w-full px-4 py-2 bg-amber-900/60 hover:bg-amber-800/80 active:bg-amber-900 text-amber-200 text-xs font-medium rounded-lg transition-colors text-left"
+            type="button"
+            @click="jumpToScene(entry.id)"
+          >
+            {{ entry.label }}
+          </button>
+        </div>
+      </template>
       <button
         v-if="isDev"
         class="w-full px-6 py-3 bg-teal-800 hover:bg-teal-700 active:bg-teal-900 text-white text-sm font-semibold rounded-xl transition-colors"

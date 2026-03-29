@@ -15,15 +15,16 @@ import {
   PlayerController,
   PLAYER_CAPSULE_HALF_HEIGHT,
   type PlayerControllerEvent,
+  type TerrainSurfaceSampler,
 } from '@base/player-three'
 import {
   EnvironmentRuntime,
   SceneBuilder,
   type SceneDescriptor,
-  type TerrainSampler,
 } from '@base/scene-builder'
+import { MeshTerrainSampler } from '@/utils/MeshTerrainSampler'
 import { createSceneBuildOptions } from '@/utils/sceneBuildOptions'
-import { GAME_EVENTS } from '@/game/sessionTypes'
+import { GAME_EVENTS, type GameSceneChangeRequestPayload } from '@/game/sessionTypes'
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -68,10 +69,72 @@ export interface GameplaySceneConfig {
    * If omitted and the descriptor loads a `modelUrl`, {@link DEFAULT_SKINNED_CROUCH_TERRAIN_Y_DELTA} is applied automatically.
    */
   crouchTerrainYOffsetDelta?: number
+  /**
+   * Steepest slope the character can walk up before movement is blocked as "wall".
+   * Default in PlayerController is 35° — works for gentle hills.
+   * Increase to 55–65° for scenes with steep navigable terrain (e.g. hillside ascent).
+   */
+  maxWalkableSlopeDeg?: number
+  /**
+   * Drop threshold (metres) before the cliff-edge catch blocks walk/jog movement.
+   * Default is feetToHips × 2/3 ≈ 0.59m — suited for flat terrain with real cliff edges.
+   * For steep downhill: set to probeHorizon × tan(slopeDeg).
+   * At 55° slope with default probe multiplier: ~1.78 × tan(55°) ≈ 2.55m.
+   * Sprint always bypasses this check regardless of threshold.
+   */
+  cliffDropCatchThreshold?: number
   /** Log jump arc telemetry (peak, fall dist, air time) on landing. */
   debugJumpArc?: boolean
   /** Log resolved animation clip names on CharacterAnimationRig init. */
   debugClipResolution?: boolean
+  /**
+   * Navigation / collision mesh that replaces the procedural `TerrainSampler`.
+   * Load a GLB whose meshes represent the exact walkable surfaces (ground, roads, rooftops).
+   * The mesh is placed with the same transform as the visual GLB so physics aligns.
+   * The root is added to the scene invisible — physics only, no visual contribution.
+   */
+  navigationMesh?: {
+    url: string
+    x?: number
+    y?: number
+    z?: number
+    scale?: number
+    rotationY?: number
+    /** Set true temporarily to render the nav mesh as a wireframe overlay for alignment debugging. */
+    debugVisible?: boolean
+  }
+  /**
+   * Scene exit trigger zones. A glowing ring is placed at each zone; standing inside for
+   * `dwellSeconds` (default 1.2s) emits `game:request-scene-change` with the target scene id.
+   * Positions are world-space X/Z. Y is sampled from terrain at mount time.
+   */
+  exitZones?: Array<{
+    x: number
+    /** Explicit world Y for the ring. Overrides terrain sampling — use when the ring
+     *  sits on a steep slope or elevated surface where sampling gives a wrong value. */
+    y?: number
+    z: number
+    /** Trigger radius in metres. Default 2.5. */
+    radius?: number
+    targetSceneId: string
+    /** Ring colour (hex). Default amber 0xffdd44. */
+    ringColor?: number
+    /** Seconds the player must stand inside before transition fires. Default 1.2. */
+    dwellSeconds?: number
+  }>
+  /**
+   * Emissive sky orb — used for the dead sun in scene-01.
+   * Rendered as a solid sphere with MeshBasicMaterial (unlit, always visible through fog).
+   */
+  sunOrb?: {
+    x: number
+    y: number
+    z: number
+    /** Sphere radius. Default 12. */
+    radius?: number
+    /** Colour hex. Default amber 0xff8800. */
+    color?: number
+  }
   /**
    * Scene-local secret double-jump policy.
    * Keep this feature scenario-owned here; shared packages expose only generic movement capability.
@@ -197,8 +260,8 @@ export class GameplaySceneModule extends BaseModule {
   private readonly player: PlayerController
 
   private character!: THREE.Object3D
-  private sampler?: TerrainSampler
-  protected setSampler(s: TerrainSampler | undefined): void { this.sampler = s }
+  private sampler?: TerrainSurfaceSampler
+  protected setSampler(s: TerrainSurfaceSampler | undefined): void { this.sampler = s }
   private effectiveRadius = 50
 
   private offInputAxis: (() => void) | null = null
@@ -243,6 +306,10 @@ export class GameplaySceneModule extends BaseModule {
   private _dilation: FallTimeDilationConfig | null = null
   private _dilationActive = false
   private _dilationCurrentScale = 1.0
+
+  // Exit zone dwell accumulators — one entry per exitZones[] index.
+  private _exitZoneDwell: number[] = []
+  private _exitTriggered = false
 
   constructor(
     options: Partial<GameplaySceneConfig> & { descriptor?: SceneDescriptor } = {},
@@ -289,6 +356,8 @@ export class GameplaySceneModule extends BaseModule {
       terrainYOffset: PLAYER_CAPSULE_HALF_HEIGHT,
       debugMovement: playerMovementDebugEnabled(),
       debugJumpArc: this.cfg.debugJumpArc,
+      maxWalkableSlopeDeg: this.cfg.maxWalkableSlopeDeg,
+      cliffDropCatchThreshold: this.cfg.cliffDropCatchThreshold,
       extraJumps: 1,
       canUseExtraJump: () => this.canUseSecretExtraJumpNow(),
     })
@@ -314,6 +383,11 @@ export class GameplaySceneModule extends BaseModule {
 
   getCameraMode(): GameplayCameraMode {
     return this.gameplayCam.getMode()
+  }
+
+  /** Current player world position — useful for tuning exit zone coordinates in dev. */
+  getPlayerPosition(): THREE.Vector3 {
+    return this.character.position.clone()
   }
 
   setCameraMode(mode: GameplayCameraMode): void {
@@ -368,6 +442,66 @@ export class GameplaySceneModule extends BaseModule {
             : 0
       this.player.setCrouchTerrainYOffsetDelta(crouchY)
       this.environment      = EnvironmentRuntime.attachGame(ctx, this.descriptor.atmosphere ?? {})
+
+      if (this.cfg.navigationMesh) {
+        const nav = this.cfg.navigationMesh
+        const gltf = await ctx.assets.loadGLTF(nav.url)
+        const navRoot = gltf.scene
+        navRoot.position.set(nav.x ?? 0, nav.y ?? 0, nav.z ?? 0)
+        navRoot.scale.setScalar(nav.scale ?? 1)
+        navRoot.rotation.y = nav.rotationY ?? 0
+        if (nav.debugVisible) {
+          // Wireframe overlay so you can see nav mesh alignment against the visual GLB.
+          // Set debugVisible: false (or remove) once alignment is confirmed.
+          navRoot.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              const mesh = child as THREE.Mesh
+              mesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
+            }
+          })
+        } else {
+          // Hide root AND every child — GLTF nodes can carry their own visible flag
+          // from Blender which survives the parent-level toggle.
+          navRoot.traverse((child) => { child.visible = false })
+        }
+        ctx.scene.add(navRoot)
+        navRoot.updateMatrixWorld(true)
+        // Procedural sampler stays as fallback — covers steep hill faces where
+        // top-down raycasting misses. Mesh wins on flat/walkable surfaces.
+        this.sampler = MeshTerrainSampler.fromRoot(navRoot, this.sampler ?? null)
+      }
+
+      // ── Exit zone rings ────────────────────────────────────────────────────
+      if (this.cfg.exitZones?.length) {
+        this._exitZoneDwell = this.cfg.exitZones.map(() => 0)
+        for (const zone of this.cfg.exitZones) {
+          const r = zone.radius ?? 2.5
+          const groundY = zone.y ?? this.sampler?.sample(zone.x, zone.z) ?? 0
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(r * 0.55, r, 48),
+            new THREE.MeshBasicMaterial({
+              color: zone.ringColor ?? 0xffdd44,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.65,
+            }),
+          )
+          ring.rotation.x = -Math.PI / 2
+          ring.position.set(zone.x, groundY + 0.06, zone.z)
+          ctx.scene.add(ring)
+        }
+      }
+
+      // ── Dead sun / sky orb ─────────────────────────────────────────────────
+      if (this.cfg.sunOrb) {
+        const s = this.cfg.sunOrb
+        const orb = new THREE.Mesh(
+          new THREE.SphereGeometry(s.radius ?? 12, 32, 16),
+          new THREE.MeshBasicMaterial({ color: s.color ?? 0xff8800 }),
+        )
+        orb.position.set(s.x, s.y, s.z)
+        ctx.scene.add(orb)
+      }
     } else {
       this.effectiveRadius = this.cfg.groundRadius
       this.character = this.buildDefaultScene(ctx)
@@ -565,6 +699,7 @@ export class GameplaySceneModule extends BaseModule {
     this.wallStumbleAnimTrigger = false
     this.failedJumpAnimTrigger = false
     this.updateSecretWindow(simDelta, snap.velocity.y)
+    this.tickExitZones(simDelta, ctx)
 
     const fpMode = this.gameplayCam.getMode() === 'first-person'
     this.gameplayCam.update(
@@ -593,6 +728,33 @@ export class GameplaySceneModule extends BaseModule {
     }
     // Apply fall dilation (multiplicative; 1.0 when inactive).
     return d * this._dilationCurrentScale
+  }
+
+  private tickExitZones(delta: number, ctx: ThreeContext): void {
+    if (this._exitTriggered || !this.cfg.exitZones?.length) return
+    const px = this.character.position.x
+    const pz = this.character.position.z
+    for (let i = 0; i < this.cfg.exitZones.length; i++) {
+      const zone = this.cfg.exitZones[i]!
+      const r = zone.radius ?? 2.5
+      const dx = px - zone.x
+      const dz = pz - zone.z
+      if (dx * dx + dz * dz <= r * r) {
+        const prev = this._exitZoneDwell[i] ?? 0
+        this._exitZoneDwell[i] = prev + delta
+        if (import.meta.env.DEV && prev === 0) {
+          console.log(`[ExitZone] entered zone ${i} → ${zone.targetSceneId} (x:${px.toFixed(1)} z:${pz.toFixed(1)})`)
+        }
+        if (this._exitZoneDwell[i]! >= (zone.dwellSeconds ?? 1.2)) {
+          this._exitTriggered = true
+          console.log(`[ExitZone] triggered → ${zone.targetSceneId}`)
+          const payload: GameSceneChangeRequestPayload = { targetSceneId: zone.targetSceneId }
+          ctx.eventBus.emit(GAME_EVENTS.REQUEST_SCENE_CHANGE, payload)
+        }
+      } else {
+        this._exitZoneDwell[i] = 0
+      }
+    }
   }
 
   private isInSecretActivationZone(): boolean {
@@ -727,7 +889,7 @@ export class GameplaySceneModule extends BaseModule {
     const dilationScale = cfg.dilationScale ?? 0.25
     const blendSpeed    = cfg.blendSpeed ?? 5
 
-    const isFalling = snap.mode === 'airborne' && snap.velocity.y < -minFallSpeed
+    const isFalling = !snap.grounded && snap.velocity.y < -minFallSpeed
 
     if (!this._dilationActive) {
       if (isFalling) {
@@ -737,7 +899,7 @@ export class GameplaySceneModule extends BaseModule {
         }
       }
     } else {
-      if (!isFalling && snap.mode !== 'airborne') {
+      if (!isFalling && snap.grounded) {
         this._dilationActive = false
       }
     }

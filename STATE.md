@@ -4,18 +4,26 @@
 
 _Last updated: 2026-03-28_
 
-**What's working:** Scene registry, session transition types, and `gameplayPolicy` wired. Sandbox and scene-01/scene-02 registered. `GameLogicModule` scaffolded with game store integration. `SandboxSceneModule` mirrors the engine-dev harness (ramps, pool, time controls). Third-person orbit camera inherited from harness. Swimming v1 transferred: water mode activates at shoulder depth, tread/swim animations load. **Game design now fully documented** — narrative spine (Prodigal Son), all 5 scenes with structured specs, GDD written. Roadmap rebuilt with full systems audit and content asset inventory.
+**What's working:**
+- Scene registry covers all 5 scenes in GDD order. Atmosphere profiles in place (`realWorld`, `realWorldWarm`, `dreamWorld`).
+- Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). Spawn on road at hill slope start.
+- Scene-02: cliff procedural terrain, dreamWorld atmosphere. Lost-in-woods forest (4 scatter fields ~115 trees + rocks + stone pile). Exit ring at hilltop (x:10, y:8.6, z:-0.2 → scene-03). secretDoubleJump wired.
+- Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (x:0.6, y:-0.7, z:-8.5 → scene-01). Full 01→02→03→01 loop wired and position-tuned.
+- Exit zone system: glowing ring + 1.2s dwell trigger + `game:request-scene-change` → SceneView navigates cleanly.
+- Dev HUD: player X/Z/Y position readout (bottom-right, dev builds only).
+- Nav mesh `debugVisible` flag for Blender alignment sessions.
+- TypeScript build: all CI errors resolved (`snap.mode` → `snap.grounded`, `TerrainSampler` → `TerrainSurfaceSampler`, registry optional-field helpers).
 
-**What's broken / incomplete:** Scene numbering in code does not match game design order — `src/scenes/scene-02` currently holds house-on-hill content which should be scene-01. Must be reconciled before Phase 4A proceeds. Scene-03 through scene-05 have no code descriptors. All NPC and child character models missing. `GameLogicModule` has no win/fail conditions. HUD is a stub.
+**What's broken / incomplete:** Scene-02 has no cliff GLB (forest is placeholder). Scenes 04–05 are structural stubs. All NPC models missing. Child avatar switch missing. GameLogicModule has no win/fail conditions. HUD is a stub.
 
 ## Active Work
 
-- Phase 4A not yet started — game design complete, scene reconciliation is the entry point
-- Receiving swimming + uphill fixes from `threejs-engine-dev` harness as they ship
+- Phase 4A Step 2 complete — all three scene exit zones position-tuned and working
+- Next: NPC capsule stubs (old man scene-01, young dad scene-03)
 
 ## Blockers & Open Questions
 
-- **[2026-03-28]** Scene numbering mismatch: `src/scenes/scene-02` holds house-on-hill (= Game Scene 01). Must reconcile before any scene descriptor work. See roadmap Content Asset Audit section.
+- ~~**[2026-03-28]** Scene numbering mismatch~~ — **resolved 2026-03-28**. Code now matches game design order.
 - **[2026-03-28]** All NPC character models missing (old man, young dad, elders, child player). P1 — blocks NPC system validation in Phase 4A. Must source in parallel with code.
 - **[2026-03-28]** `threejs-engine-dev` Phase 3d (camera strategy switching) must land before cinematic camera decisions are locked in Phase 4C.
 - **[2026-03-28]** Scene 4 (Roksana) requires dedicated polishing pass before it can be built. Structural placeholder contracts are stable.
@@ -23,17 +31,19 @@ _Last updated: 2026-03-28_
 
 ## Next Session
 
-> **Phase 4A — Step 1: Scene reconciliation + registry extension.**
+> **Phase 4A — Step 2 continued: exit zone tuning + NPC stubs.**
 >
-> 1. Reconcile scene numbering: rename/remap descriptors so scene-01 = house on hill, scene-02 = cliff (dream), scene-03 = lake, scene-04 = Roksana placeholder, scene-05 = return. Move `house_on_the_hill.glb` reference from scene-02 descriptor to scene-01.
-> 2. Extend `registry.ts` and `gameplayPolicy.ts` to include scene-03, scene-04, scene-05 with correct transition edges (01→02→03→04→05).
-> 3. Author Scene 01 descriptor against GDD spec: hill terrain using existing GLB, `realWorld` atmosphere profile (amber fog, autumn palette, static sky — no dynamic sky), dead sun as emissive plane in sky, old man NPC spawn stub (primitive mesh acceptable), ascent path, hilltop exit zone.
->
-> Reference: `docs/game-design/scenes/scene-01-house-on-hill.md`. Also begin sourcing P1 character assets (child model, NPC models) in parallel — these will block Phase 4A exit criteria.
+> 1. **Tune exit zone coordinates**: load each scene, walk to the target location (hilltop / cliff edge / house side), read x/z from HUD, update `exitZones` in the scene's `gameplay` export.
+> 2. **NPC capsule stubs**: add old man placeholder (CapsuleGeometry) at known spawn near hilltop path in scene-01. Add young dad placeholder near lake dock in scene-03.
+> 3. **Scene-02 cliff respawn**: fall below Y=-15 → respawn at rock top (x:0, z:0). Requires adding a fall-reset trigger to GameplaySceneModule or GameLogicModule.
+> 4. **Source P1 assets in parallel**: child model (Mixamo or Quaternius), old man NPC, young dad NPC, elder NPCs.
 
 ## Decision Log
 
 <!-- Append-only. One line per decision, newest first. -->
+- **2026-03-28** — Scene-specific gameplay config co-located in each scene's `index.ts` (exports `gameplay: SceneGameplayPolicy`). Central `gameplayPolicy.ts` becomes a thin lookup delegate. Adding a new scene no longer requires touching a parallel config file.
+- **2026-03-28** — `SceneGameplayPolicy` type moved to `src/scenes/types.ts` to prevent circular dependency: `gameplayPolicy.ts → registry.ts → scene-02 → gameplayPolicy.ts`. Clean dependency chain: `types.ts → GameplaySceneModule` only.
+- **2026-03-28** — Atmosphere profiles (`realWorld`, `realWorldWarm`, `dreamWorld`) extracted to `atmosphereProfiles.ts`. Scenes spread profile + override. Two named profiles match roadmap spec; `realWorldWarm` added for scene-03 warm contrast.
 
 - **2026-03-28** — Phone as central object: menu → lost in Scene 1 → recovered in Scene 3 → shared in Scene 5. Serves as loss mechanic, snapshot tool, and mobile meta-layer simultaneously. Phone model selection at menu personalizes the loss.
 - **2026-03-28** — Win conditions: two paths (Archivist = snapshots shared; Present = fall into laughter). Both end in supernova. Lose = slow fade + missed-moments slideshow. No hard game-over in V1.

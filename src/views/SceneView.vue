@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+
 import { ThreeModule } from '@base/threejs-engine'
 import { InputModule } from '@base/input'
 import { AudioModule } from '@base/audio'
@@ -11,10 +12,9 @@ import {
 } from '@base/camera-three'
 import { GameplaySceneModule } from '@/modules/GameplaySceneModule'
 import { GameLogicModule } from '@/modules/GameLogicModule'
-import { GAME_EVENTS } from '@/game/sessionTypes'
-import { scene01 } from '@/scenes/scene-01'
+import { GAME_EVENTS, type GameSceneChangeRequestPayload } from '@/game/sessionTypes'
 import { getSceneGameplayPolicy } from '@/scenes/gameplayPolicy'
-import { getSceneDescriptor } from '@/scenes/registry'
+import { getSceneEntry, getSceneNavigationMesh } from '@/scenes/registry'
 import { useShellContext } from '@/composables/useShellContext'
 import { useShellStore } from '@/stores/shell'
 import { useGameStore } from '@/stores/game'
@@ -31,9 +31,11 @@ const audioModule = new AudioModule()
 
 const initialSceneId = gameStore.pullBootstrapSceneId() ?? 'scene-01'
 const gameLogic = new GameLogicModule({ initialSceneId })
+const sceneRegistryEntry = getSceneEntry(initialSceneId)
 const sceneGameplayPolicy = getSceneGameplayPolicy(initialSceneId)
 const sceneModule = new GameplaySceneModule({
-  descriptor: getSceneDescriptor(initialSceneId) ?? scene01,
+  descriptor: sceneRegistryEntry?.descriptor,
+  navigationMesh: getSceneNavigationMesh(initialSceneId),
   cameraMode: 'first-person',
   cameraPreset: 'close-follow',
   /** Root is feet-aligned after SceneBuilder; tuned vs Remy 1.78m — slight lift clears neck band at walk. */
@@ -89,6 +91,9 @@ const showHint = ref(true)
 let hintTimer: ReturnType<typeof setTimeout>
 
 const worldReady = ref(false)
+const playerPos = ref('')
+let posTimer: ReturnType<typeof setInterval> | undefined
+let offSceneChange: (() => void) | undefined
 
 onMounted(async () => {
   if (!container.value) return
@@ -120,11 +125,30 @@ onMounted(async () => {
   }, 4000)
 
   window.addEventListener('keydown', onWindowKeyDown)
+
+  // Scene exit zone trigger — stage target scene, navigate to menu, then back to game.
+  // The 300 ms gap lets engine.unmount() finish its async WebGL cleanup before the
+  // next SceneView mounts and creates a new renderer.
+  offSceneChange = context.eventBus.on(GAME_EVENTS.REQUEST_SCENE_CHANGE, (raw) => {
+    console.log('[SceneView] REQUEST_SCENE_CHANGE received', raw)
+    const { targetSceneId } = raw as GameSceneChangeRequestPayload
+    gameStore.stageInitialSceneForNextPlay(targetSceneId)
+    void router.push('/').then(() => new Promise<void>(r => setTimeout(r, 300))).then(() => router.push({ name: 'game' }))
+  })
+
+  if (import.meta.env.DEV) {
+    posTimer = setInterval(() => {
+      const p = sceneModule.getPlayerPosition()
+      playerPos.value = `x:${p.x.toFixed(1)} z:${p.z.toFixed(1)} y:${p.y.toFixed(1)}`
+    }, 250)
+  }
 })
 
 onUnmounted(async () => {
   window.removeEventListener('keydown', onWindowKeyDown)
   clearTimeout(hintTimer)
+  clearInterval(posTimer)
+  offSceneChange?.()
   gameStore.saveCurrentSessionForContinue()
   await engine.unmount()
   gameStore.detachGameBus()
@@ -205,6 +229,7 @@ async function goToMenu(): Promise<void> {
     >
       <div>mode: {{ cameraModeLabel === 'first-person' ? '1p' : '3p' }}</div>
       <div v-if="cameraModeLabel === 'third-person'">rig: {{ cameraPresetLabel }}</div>
+      <div v-if="playerPos" class="text-white/30 mt-1">{{ playerPos }}</div>
     </div>
   </div>
 </template>

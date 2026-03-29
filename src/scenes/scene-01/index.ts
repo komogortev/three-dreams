@@ -1,5 +1,7 @@
 import type { SceneDescriptor } from '@base/scene-builder'
 import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
+import { realWorld } from '@/scenes/atmosphereProfiles'
+import type { SceneGameplayPolicy } from '@/scenes/types'
 
 /** Mixamo Remy (skin) — path must be `encodeURI` if it contains spaces. */
 export const MIXAMO_REMY_FBX = encodeURI('/Remy.fbx')
@@ -7,58 +9,79 @@ export const MIXAMO_REMY_FBX = encodeURI('/Remy.fbx')
 /** Mixamo clips under `public/fbx/` merged onto Remy (same rig). */
 export const MIXAMO_ANIMATION_CLIP_URLS: string[] = [...MIXAMO_FBX_CLIP_URLS]
 
+/** GLB world transform — shared by visual mesh, nav mesh, and derived world positions. */
+const GLB_SCALE    = 1.955   // 1.7 × 1.15 (+15 %)
+const GLB_X        = 10.39
+const GLB_Z        = -21.24
+const GLB_ROTATION = -1.43
+
+/**
+ * Scene 01 gameplay overrides.
+ * High slope limit — the hill is steep and fully explorable off-path.
+ * Default PlayerController cap is 35°; 55° covers the full hill face.
+ */
+export const gameplay: SceneGameplayPolicy = {
+  maxWalkableSlopeDeg: 55,
+  cliffDropCatchThreshold: 2.6,
+
+  // ── Dead sun — amber disk motionless in the sky above the hill. ──────────
+  sunOrb: {
+    x: 30,
+    y: 70,
+    z: -80,
+    radius: 14,
+    color: 0xff8c00,
+  },
+
+  // ── Exit btn: stand on hilltop ring → enter dream world (scene-02). ─────
+  // Positions scaled 1.15× outward from GLB origin (10.39, -21.24).
+  exitZones: [
+    { x: 5, y: 22.8, z: -36, radius: 3, targetSceneId: 'scene-02' },
+  ],
+}
+
+/**
+ * Navigation / collision mesh for scene 01.
+ * Extracted from house_on_the_hill.glb in Blender — ground, road, house shell, fences.
+ * Same transform as the visual GLB so raycasting aligns to rendered surfaces.
+ */
+export const navigationMesh = {
+  url: '/scenes/scene-01/house_on_the_hill_mesh_ground.glb',
+  x: GLB_X,
+  y: 0,
+  z: GLB_Z,
+  scale: GLB_SCALE,
+  rotationY: GLB_ROTATION,
+} as const
+
+/**
+ * Scene 01 — House on the Hill (Real World).
+ *
+ * Visual: house_on_the_hill.glb overlay; heightmap drives physics ground.
+ * Atmosphere: realWorld — amber-ochre fog, cold autumn, static sky.
+ * Character: adult Remy, spawns on road at base of hill slope.
+ */
 export const scene01: SceneDescriptor = {
   terrain: {
-    radius: 50,
-    resolution: 180,
+    radius: 90,
+    resolution: 128,
     seaLevel: 0,
-    baseColor: 0x1c2e1a,
+    baseColor: 0xdcc495,
+    baseOpacity: 0,
     waterColor: 0x0a1c38,
-    waterOpacity: 0.76,
+    waterOpacity: 0,
     features: [
       {
         type: 'heightmap',
-        url: '/terrains/heatmap-scene-1.png',
+        url: '/terrains/heatmap-scene-02.png',
         amplitude: 10,
+        offsetZ: -22,
       },
     ],
   },
-  atmosphere: {
-    dynamicSky: true,
-    fogColor: 0x1fdb93,
-    fogDensity: 0.011,
-    ambientColor: 0x3d5244,
-    ambientIntensity: 1.22,
-    hemisphereSkyColor: 0xc4e0ff,
-    hemisphereGroundColor: 0x3a4536,
-    hemisphereIntensity: 0.58,
-    time: {
-      initialPhase: 0.3438,
-      phaseSpeed: 0.0051,
-    },
-    sky: {
-      model: 'physical',
-    },
-    sunMoon: {
-      sunIntensity: 1.02,
-      moonIntensity: 0.26,
-    },
-    clouds: {
-      enabled: true,
-      height: 140,
-      scale: 800,
-      windX: 0.4,
-      windZ: -0.5,
-      scrollSpeed: 0.035,
-      opacity: 0.76,
-      visibleFrom: 0,
-      visibleTo: 1,
-      densityAtNight: 0.4,
-      densityAtNoon: 1,
-    },
-  },
+  atmosphere: realWorld,
   character: {
-    startPosition: [0, 0],
+    startPosition: [-52, 9],
     modelUrl: MIXAMO_REMY_FBX,
     modelScale: 1,
     modelFitHeight: 1.78,
@@ -68,81 +91,13 @@ export const scene01: SceneDescriptor = {
   },
   objects: [
     {
-      type: 'scatter',
-      primitive: 'tree',
-      count: 12,
-      centerX: -40.5,
-      centerZ: 0,
-      innerRadius: 0,
-      outerRadius: 12,
-      scaleMin: 1.8,
-      scaleMax: 2.7,
-      seed: 1753081254,
-    },
-    {
-      type: 'scatter',
-      primitive: 'tree',
-      count: 27,
-      centerX: -36,
-      centerZ: -26,
-      innerRadius: 0,
-      outerRadius: 17,
-      scaleMin: 1.2,
-      scaleMax: 1.85,
-      seed: 2054067398,
-    },
-    {
-      type: 'scatter',
-      primitive: 'tree',
-      count: 39,
-      centerX: -38.5,
-      centerZ: 19,
-      innerRadius: 0,
-      outerRadius: 12,
-      scaleMin: 1.15,
-      scaleMax: 1.9,
-      seed: 3573289182,
-    },
-    {
-      type: 'scatter',
-      primitive: 'tree',
-      count: 37,
-      centerX: -26,
-      centerZ: 33,
-      innerRadius: 0,
-      outerRadius: 12,
-      scaleMin: 0.95,
-      scaleMax: 1.6,
-      seed: 43290863,
-    },
-    {
-      type: 'rock',
-      x: -8,
-      z: -12,
-      scale: 3.2,
-      rotationY: 0.8,
-    },
-    {
-      type: 'rock',
-      x: 6,
-      z: 8,
-      scale: 2,
-      rotationY: 2.1,
-    },
-    {
-      type: 'rock',
-      x: -18,
-      z: 6,
-      scale: 4,
-      rotationY: 0.3,
-    },
-    {
       type: 'gltf',
-      url: '/models/dirty_stones_pile.glb',
-      x: -0.72,
-      z: 8.16,
-      scale: 1,
-      rotationY: 4.61,
+      url: '/scenes/scene-01/house_on_the_hill_4k.glb',
+      x: GLB_X,
+      z: GLB_Z,
+      scale: GLB_SCALE,
+      rotationY: GLB_ROTATION,
+      allowBelowSeaLevel: true,
     },
   ],
 }
