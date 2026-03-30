@@ -553,6 +553,7 @@ export class GameplaySceneModule extends BaseModule {
     this.player.resetFacing(this.character.rotation.y)
     this.animRig = new CharacterAnimationRig(this.character, {
       debugClipResolution: this.cfg.debugClipResolution,
+      debugHazardEdges: playerMovementDebugEnabled(),
     })
 
     this.initCamera(ctx.camera)
