@@ -2,44 +2,48 @@
 
 ## Status
 
-_Last updated: 2026-03-29_
+_Last updated: 2026-03-30_
 
 **What's working:**
 - Scene registry covers all 5 scenes in GDD order. Atmosphere profiles in place (`realWorld`, `realWorldWarm`, `dreamWorld`).
-- Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). Old dad capsule stub at (-18, -14). Spawn on road at hill slope start.
+- Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). **Father-60yo model** (`npc-father-60yo.glb`) placed at (-18, -14, y:0), looping `look_around`. Capsule stub suppressed when GLB loads.
 - Scene-02: cliff procedural terrain, dreamWorld atmosphere. Lost-in-woods forest (4 scatter fields ~115 trees + rocks + stone pile). Exit ring (x:10, y:8.6, z:-0.2 → scene-03). secretDoubleJump wired. Fall below Y:-15 → respawn fixed at rock top (0, 0).
-- Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (→ scene-01). Young dad capsule stub at (6.5, 4.6, y:-0.2). Player spawns at (8.2, 5.4). Full 01→02→03→01 loop wired and position-tuned.
-- `npcStubs` + `fallRespawn` on `SceneGameplayPolicy`: capsule spawning extracted to `mountNpcStubs(ctx)`. `fallRespawn` is a discriminated union (`mode: 'fixed' | 'zone'`).
+- Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (→ scene-01). **Father-40yo model** (`npc-father-40yo.glb`) placed at (6.5, -0.2, 4.6), looping `look_around`. Capsule stub suppressed when GLB loads. Player spawns at (8.2, 5.4) facing lake (Math.PI/2) — spawn facing bug fixed.
+- `npcStubs` + `fallRespawn` on `SceneGameplayPolicy`: capsule spawning in `mountNpcStubs(ctx)`. Stubs now suppressed at positions where a GltfObject loaded successfully (`loadedGltfXZ` from `SceneBuilderResult`).
 - `classic_park_bench_1k/2k.glb` present in `public/models/` — ready to wire in scene-05.
-- `npc_old_man.glb` present in `public/scenes/scene-01/` — not yet wired; Stage 2 target.
+- Both father GLBs carry **embedded animations** with verified semantic names (sit/wait/walk/swim/jump/look_around/run/idle — order differs between 40yo and 60yo). Import URLs from `src/characters/npcUrls.ts`. `@base/scene-builder` drives them via `playEmbeddedAnimations` + `loopClipNameContains`.
+- **Spawn facing fixed:** `GameplaySceneModule.resetFacing` now reads `descriptor.character.rotationY` directly — previously read `character.rotation.y` from root Group (always 0, since SceneBuilder applies yaw to the child mesh).
+- **Skeleton animation fixed:** `SceneBuilder.placeGltf` uses `SkeletonUtils.clone` instead of `gltf.scene.clone(true)` — the latter left SkinnedMesh pointing at original bones causing T-pose.
+- `npc_old_man.glb` present in `public/scenes/scene-01/` — not yet wired.
 - Exit zone system: glowing ring + 1.2s dwell trigger + `game:request-scene-change` → SceneView navigates cleanly.
 - Dev HUD: player X/Z/Y position readout (bottom-right, dev builds only).
 - TypeScript build: all CI errors resolved.
 
-**What's broken / incomplete:** Scene-02 has no cliff GLB (procedural heightmap placeholder). Scenes 04–05 are structural stubs. NPCs are capsule stubs — real character models not yet wired. Child avatar missing. `GameLogicModule` has no win/fail conditions. HUD is a stub. `npc_old_man.glb` sits in scenes/ folder — needs to move to `characters/npc/` per agreed structure.
+**What's broken / incomplete:** Scene-02 has no cliff GLB (procedural heightmap placeholder). Scenes 04–05 are structural stubs. Child avatar missing. `GameLogicModule` has no win/fail conditions. HUD is a stub. `npc_old_man.glb` sits in `scenes/scene-01/` — needs to move to `characters/npc/` per agreed structure.
 
 ## Active Work
 
-- Phase 4A complete — scene loop, exit zones, NPC stubs, fallRespawn system
-- branch `feat/phase-4a-scene-reconciliation` pushed; PR open against `main`
-
-## Blockers & Open Questions
+- Phase 4B in progress — real NPC GLBs wired in scenes 01 and 03 with verified animations
 
 ## Blockers & Open Questions
 
 - ~~**[2026-03-28]** Scene numbering mismatch~~ — **resolved 2026-03-28**. Code now matches game design order.
-- **[2026-03-28]** NPC models partially sourced: `npc_old_man.glb` present (scene-01 old dad). Missing: young dad, child avatar, elders ×2-3. P1 — young dad blocks scene-03 visual completeness; child avatar blocks scene-03 player perspective.
+- **[2026-03-28]** NPC models partially sourced: `npc_old_man.glb` (scene-01 legacy path). Father arc: `npc-father-40yo.glb` / `father-60.glb` in `public/characters/npc/`. Still missing: child avatar, elders ×2–3 for scene-05. P1 — child avatar blocks scene-03 player perspective.
 - **[2026-03-28]** `threejs-engine-dev` Phase 3d (camera strategy switching) must land before cinematic camera decisions are locked in Phase 4C.
 - **[2026-03-28]** Scene 4 (Roksana) requires dedicated polishing pass before it can be built. Structural placeholder contracts are stable.
 - **[2026-03-28]** Multiple TBD items in scene specs — Win B trigger, recognition reward, dad visual design. Resolve during each scene's authoring pass.
 
 ## Next Session
 
-> **Phase 4B start:** Wire `npc_old_man.glb` as a static `SceneDescriptor.objects` entry in scene-01 (remove capsule stub). Move `npc_old_man.glb` → `public/characters/npc/old-dad.glb` and `Remy.fbx` → `public/characters/player/remy.fbx` per agreed folder structure. Then add scene-05 bench (`classic_park_bench_1k.glb`) + elder `npcStubs`. Source young-dad model in parallel.
+> **Phase 4B continued:** Tune father NPC positions, rotations, and animation choices via visual testing. Wire `npc_old_man.glb` (currently in `public/scenes/scene-01/`) → move to `public/characters/npc/` and add as secondary NPC in scene-01. Add scene-05 bench (`classic_park_bench_1k.glb`) + elder stubs. Source child avatar for scene-03 player perspective.
 
 ## Decision Log
 
 <!-- Append-only. One line per decision, newest first. -->
+- **2026-03-30** — `SceneBuilder.placeGltf` switched to `SkeletonUtils.clone` (imported as `cloneSkinnedRoot`). `gltf.scene.clone(true)` leaves `SkinnedMesh` referencing original bones; mixer animates invisible original, clone stays in T-pose.
+- **2026-03-30** — `GameplaySceneModule.resetFacing` reads `descriptor.character.rotationY` directly. `character.rotation.y` reads the root Group which is always 0; SceneBuilder applies yaw to the child FBX mesh for AABB alignment.
+- **2026-03-30** — `mountNpcStubs` receives `loadedGltfXZ: ReadonlyArray<readonly [number, number]>` from `SceneBuilderResult`. Stubs within 0.5 units of a successfully loaded GltfObject are suppressed — graceful degradation without removing the fallback stub from the descriptor.
+- **2026-03-30** — Embedded animation names verified visually per model (not assumed from Blender NlaTrack order). Father-40yo and father-60yo share the same 8 semantic clip names but in different index order.
 - **2026-03-29** — `fallRespawn` extended to discriminated union (`mode: 'fixed' | 'zone'`). `'fixed'` = deterministic anchor (scene-02 rock loop). `'zone'` = uniform random point in one of N scatter zones (future lose-state respawn). Zone picker uses square-root distribution to avoid centre clustering.
 - **2026-03-29** — NPC stub lifecycle path decided: `npcStubs` config (capsule, now) → `SceneDescriptor.objects gltf` (static GLB, Stage 2) → `NpcModule` with behaviour (Stage 3). Each stage is a drop-in replacement with no module interface changes.
 - **2026-03-29** — Character assets folder structure agreed: `public/characters/player/` and `public/characters/npc/`. NPCs not scene-scoped — old dad appears in scene-01 and scene-05 (recognition arc); shared path is semantically correct.
