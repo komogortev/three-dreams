@@ -307,6 +307,8 @@ export class GameplaySceneModule extends BaseModule {
   private offInputAxis: (() => void) | null = null
   private offInputAction: (() => void) | null = null
   private unregisterSystem: (() => void) | null = null
+  /** From {@link SceneBuilderResult.disposeEmbeddedGltfAnimations} — GLTF props with embedded clips. */
+  private disposeEmbeddedGltfAnimations: (() => void) | undefined = undefined
   private environment: EnvironmentRuntime | null = null
 
   private animRig: CharacterAnimationRig | null = null
@@ -461,6 +463,7 @@ export class GameplaySceneModule extends BaseModule {
 
     if (this.descriptor) {
       const result = await SceneBuilder.build(ctx, this.descriptor, createSceneBuildOptions())
+      this.disposeEmbeddedGltfAnimations = result.disposeEmbeddedGltfAnimations
       if (!result.character || result.characterTerrainYOffset === undefined) {
         throw new Error(
           'GameplaySceneModule: SceneBuilder returned no character — remove skipPlayerCharacter from the descriptor.',
@@ -544,13 +547,15 @@ export class GameplaySceneModule extends BaseModule {
         ctx.scene.add(orb)
       }
 
-      this.mountNpcStubs(ctx)
+      this.mountNpcStubs(ctx, result.loadedGltfXZ)
     } else {
       this.effectiveRadius = this.cfg.groundRadius
       this.character = this.buildDefaultScene(ctx)
     }
 
-    this.player.resetFacing(this.character.rotation.y)
+    // character.rotation.y is always 0 on the root Group — SceneBuilder applies rotationY
+    // to the child mesh for AABB alignment. Read from the descriptor directly.
+    this.player.resetFacing(this.descriptor?.character?.rotationY ?? 0)
     this.animRig = new CharacterAnimationRig(this.character, {
       debugClipResolution: this.cfg.debugClipResolution,
       debugHazardEdges: playerMovementDebugEnabled(),
@@ -613,6 +618,9 @@ export class GameplaySceneModule extends BaseModule {
     this.offInputAxis?.()
     this.offInputAction?.()
 
+    this.disposeEmbeddedGltfAnimations?.()
+    this.disposeEmbeddedGltfAnimations = undefined
+
     this.animRig?.dispose()
     this.animRig = null
 
@@ -631,13 +639,20 @@ export class GameplaySceneModule extends BaseModule {
    * Spawn capsule placeholder meshes for each entry in {@link GameplaySceneConfig.npcStubs}.
    * Called from `onMount` after the nav mesh and sampler are ready.
    *
-   * Transition: when a real model is available, remove the stub from the config and add a
-   * `{ type: 'gltf', url: '/characters/npc/<name>.glb', x, z }` entry to the SceneDescriptor
-   * objects array — no module changes required.
+   * Stubs at positions occupied by a successfully loaded GltfObject are suppressed —
+   * pass `loadedGltfXZ` from {@link SceneBuilderResult} to enable this filtering.
    */
-  private mountNpcStubs(ctx: ThreeContext): void {
+  private mountNpcStubs(
+    ctx: ThreeContext,
+    loadedGltfXZ: ReadonlyArray<readonly [number, number]> = [],
+  ): void {
     if (!this.cfg.npcStubs?.length) return
+    const EPS = 0.5
     for (const npc of this.cfg.npcStubs) {
+      const suppressed = loadedGltfXZ.some(
+        ([lx, lz]) => Math.abs(lx - npc.x) < EPS && Math.abs(lz - npc.z) < EPS,
+      )
+      if (suppressed) continue
       const len = npc.capsuleLength ?? 0.85
       const rad = npc.capsuleRadius ?? 0.28
       const groundY = npc.y ?? this.sampler?.sample(npc.x, npc.z) ?? 0
