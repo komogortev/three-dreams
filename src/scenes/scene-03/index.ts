@@ -2,6 +2,7 @@ import type { SceneDescriptor } from '@base/scene-builder'
 import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
 import { realWorldWarm } from '@/scenes/atmosphereProfiles'
 import type { SceneGameplayPolicy } from '@/scenes/types'
+import { NPC_CHARACTER_URLS } from '@/characters/npcUrls'
 
 const GLB_SCALE = 1.7
 
@@ -25,8 +26,7 @@ export const gameplay: SceneGameplayPolicy = {
   exitZones: [
     { x: 0.6, y: -0.7, z: -8.5, radius: 3, targetSceneId: 'scene-01', ringColor: 0xffaa44 },
   ],
-
-  // Young dad — lakeside / dock activity area (tune with dev HUD).
+  // Capsule kept as positional fallback if GLB fails to load.
   npcStubs: [
     { x: 6.5, z: 4.6, y: -0.2, color: 0xc4785c, capsuleLength: 0.72, capsuleRadius: 0.26 },
   ],
@@ -61,7 +61,7 @@ export const scene03: SceneDescriptor = {
     modelScale: 1,
     modelFitHeight: 1.78,
     pruneExtraSkinnedMeshes: false,
-    rotationY: Math.PI,
+    rotationY: Math.PI / 2, // 90°
     animationClipUrls: [...MIXAMO_FBX_CLIP_URLS],
   },
   objects: [
@@ -73,6 +73,20 @@ export const scene03: SceneDescriptor = {
       scale: GLB_SCALE,
       rotationY: 0,
       allowBelowSeaLevel: true,
+    },
+    // ── Father (40yo) sitting by the dock / lake shore. ─────────────────────
+    // Position matches the former npcStub. Scale / rotationY need visual tuning.
+    {
+      type: 'gltf',
+      url: NPC_CHARACTER_URLS.father40,
+      x: 6.5,
+      y: -0.2,
+      z: 4.6,
+      scale: 1.89,
+      rotationY: Math.PI * 0.25, // −90° CW from previous 135°
+      allowBelowSeaLevel: true,
+      playEmbeddedAnimations: true,
+      loopClipNameContains: 'look_around',
     },
   ],
   swimmableVolumes: [

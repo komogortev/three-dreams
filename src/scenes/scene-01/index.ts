@@ -2,6 +2,7 @@ import type { SceneDescriptor } from '@base/scene-builder'
 import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
 import { realWorld } from '@/scenes/atmosphereProfiles'
 import type { SceneGameplayPolicy } from '@/scenes/types'
+import { NPC_CHARACTER_URLS } from '@/characters/npcUrls'
 
 /** Mixamo Remy (skin) — path must be `encodeURI` if it contains spaces. */
 export const MIXAMO_REMY_FBX = encodeURI('/Remy.fbx')
@@ -103,6 +104,19 @@ export const scene01: SceneDescriptor = {
       scale: GLB_SCALE,
       rotationY: GLB_ROTATION,
       allowBelowSeaLevel: true,
+    },
+    // ── Father (60yo) on the ascent path. Position matches npcStub fallback. ─
+    // Scale / rotationY need visual tuning. No loopClipNameContains → plays clip[0] first.
+    {
+      type: 'gltf',
+      url: NPC_CHARACTER_URLS.father60,
+      x: -18,
+      z: -14,
+      scale: 2.5,
+      y: 0,
+      rotationY: -Math.PI * (11 / 18), // −110° CW
+      playEmbeddedAnimations: true,
+      loopClipNameContains: 'look_around',
     },
   ],
 }
