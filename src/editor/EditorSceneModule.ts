@@ -18,6 +18,7 @@ import {
   sampleTerrainFootprintY,
 } from '@base/player-three'
 import {
+  attachEmbeddedGltfAnimations,
   convertUnlitToPbrRough,
   EnvironmentRuntime,
   PrimitiveFactory,
@@ -251,6 +252,8 @@ export class EditorSceneModule extends BaseModule {
   private _unregisterLoop:   (() => void) | null = null
   private _offInputAxis:     (() => void) | null = null
   private _offInputAction:   (() => void) | null = null
+  /** Mixers for placed `gltf` objects with {@link GltfObject.playEmbeddedAnimations}. */
+  private _gltfEmbeddedMixers: THREE.AnimationMixer[] = []
 
   // ── Vue bridge callback ─────────────────────────────────────────────────────
 
@@ -373,6 +376,9 @@ export class EditorSceneModule extends BaseModule {
 
     this._unregisterLoop = ctx.registerSystem('editor-frame', (delta) => {
       this._env.update(delta)
+      for (const m of this._gltfEmbeddedMixers) {
+        m.update(delta)
+      }
       if (this._playSimulation) {
         this._playTick(delta)
       } else {
@@ -399,6 +405,10 @@ export class EditorSceneModule extends BaseModule {
     this._offInputAction?.()
     this._offInputAxis = null
     this._offInputAction = null
+    for (const m of this._gltfEmbeddedMixers) {
+      m.stopAllAction()
+    }
+    this._gltfEmbeddedMixers = []
     this._disposeSessionAvatar()
     if (this._spawnMarker) {
       this._ctx.scene.remove(this._spawnMarker)
@@ -921,6 +931,7 @@ export class EditorSceneModule extends BaseModule {
         model.position.copy(placeholder.position)
         model.rotation.copy(placeholder.rotation)
         model.scale.copy(placeholder.scale)
+        attachEmbeddedGltfAnimations(model, gltf.animations, gltfDesc, this._gltfEmbeddedMixers)
         scene.add(model)
         scene.remove(placeholder)
 
