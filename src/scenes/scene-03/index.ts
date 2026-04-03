@@ -37,7 +37,7 @@ export const gameplay: SceneGameplayPolicy = {
  *
  * Visual: house_on_lake.glb at 1.7× scale; procedural terrain suppressed (GLB provides ground).
  * Atmosphere: realWorldWarm — warmer summer-autumn palette, lighter fog.
- * Character: child avatar placeholder (Remy at child scale until avatar switching ships).
+ * Character: child avatar (`npc-boy-5yo.glb`) + shared Mixamo locomotion clips.
  * Spawn: shoreside, facing the lake and young dad activity area.
  *
  * Phase 4A: NPC spawn stub for young dad.
@@ -57,10 +57,12 @@ export const scene03: SceneDescriptor = {
   atmosphere: realWorldWarm,
   character: {
     startPosition: [8.2, 5.4],
-    modelUrl: encodeURI('/Remy.fbx'),
+    modelUrl: NPC_CHARACTER_URLS.childBoy5,
     modelScale: 1,
-    modelFitHeight: 1.78,
+    /** ~standing height for 5yo vs 1.78m adult Remy — tune with `debugCharacterBounds` if needed. */
+    modelFitHeight: 1.12,
     pruneExtraSkinnedMeshes: false,
+    terrainFootprintRadius: 0.14,
     rotationY: Math.PI / 2, // 90°
     animationClipUrls: [...MIXAMO_FBX_CLIP_URLS],
   },
@@ -74,7 +76,7 @@ export const scene03: SceneDescriptor = {
       rotationY: 0,
       allowBelowSeaLevel: true,
     },
-    // ── Father (40yo) sitting by the dock / lake shore. ─────────────────────
+    // ── Father (40yo) by the dock — outdoor-2k mesh; rig has no embedded clips (bind pose).
     // Position matches the former npcStub. Scale / rotationY need visual tuning.
     {
       type: 'gltf',
@@ -85,8 +87,6 @@ export const scene03: SceneDescriptor = {
       scale: 1.89,
       rotationY: Math.PI * 0.25, // −90° CW from previous 135°
       allowBelowSeaLevel: true,
-      playEmbeddedAnimations: true,
-      loopClipNameContains: 'look_around',
     },
   ],
   swimmableVolumes: [

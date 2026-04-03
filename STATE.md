@@ -1,25 +1,33 @@
 # STATE.md — three-dreams
 
+## SNAPSHOT
+Phase: 4B | Last: 2026-04-02 | Stack: Vue 3 + @base fork (pwa-shell)
+Working: Scenes 01–03, all NPC GLBs optimized + correctly placed, scripts/optimize-glb.sh pipeline
+Broken: Scenes 04–05 stubs, no win conditions, HUD stub, no audio tracks
+Blocker: Phase 3d (camera) must land before Phase 4C cinematic decisions
+Next: Wire npc-old-man.glb as secondary NPC in scene-01; add scene-05 bench + elder stubs; extract animations to shared packs
+
+---
+
 ## Status
 
-_Last updated: 2026-03-30_
+_Last updated: 2026-04-02_
 
 **What's working:**
 - Scene registry covers all 5 scenes in GDD order. Atmosphere profiles in place (`realWorld`, `realWorldWarm`, `dreamWorld`).
-- Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). **Father-60yo model** (`npc-father-60yo.glb`) placed at (-18, -14, y:0), looping `look_around`. Capsule stub suppressed when GLB loads.
+- Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). **Father-60yo model** (`npc-father-60yo.glb` via `NPC_CHARACTER_URLS`) placed at (-18, -14, y:0), looping `look_around`. Capsule stub suppressed when GLB loads.
 - Scene-02: cliff procedural terrain, dreamWorld atmosphere. Lost-in-woods forest (4 scatter fields ~115 trees + rocks + stone pile). Exit ring (x:10, y:8.6, z:-0.2 → scene-03). secretDoubleJump wired. Fall below Y:-15 → respawn fixed at rock top (0, 0).
-- Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (→ scene-01). **Father-40yo model** (`npc-father-40yo.glb`) placed at (6.5, -0.2, 4.6), looping `look_around`. Capsule stub suppressed when GLB loads. Player spawns at (8.2, 5.4) facing lake (Math.PI/2) — spawn facing bug fixed.
-- `npcStubs` + `fallRespawn` on `SceneGameplayPolicy`: capsule spawning in `mountNpcStubs(ctx)`. Stubs now suppressed at positions where a GltfObject loaded successfully (`loadedGltfXZ` from `SceneBuilderResult`).
+- Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (→ scene-01). **Father-40yo** (`npc-father-40yo-outdoor.glb`, bind pose — no embedded clips) at (6.5, -0.2, 4.6). **Player** uses child `npc-boy-5yo.glb` at (8.2, 5.4) facing lake (Math.PI/2).
+- `npcStubs` + `fallRespawn` on `SceneGameplayPolicy`: capsule spawning in `mountNpcStubs(ctx)`. Stubs suppressed at positions where GltfObject loaded successfully.
 - `classic_park_bench_1k/2k.glb` present in `public/models/` — ready to wire in scene-05.
-- Both father GLBs carry **embedded animations** with verified semantic names (sit/wait/walk/swim/jump/look_around/run/idle — order differs between 40yo and 60yo). Import URLs from `src/characters/npcUrls.ts`. `@base/scene-builder` drives them via `playEmbeddedAnimations` + `loopClipNameContains`.
-- **Spawn facing fixed:** `GameplaySceneModule.resetFacing` now reads `descriptor.character.rotationY` directly — previously read `character.rotation.y` from root Group (always 0, since SceneBuilder applies yaw to the child mesh).
-- **Skeleton animation fixed:** `SceneBuilder.placeGltf` uses `SkeletonUtils.clone` instead of `gltf.scene.clone(true)` — the latter left SkinnedMesh pointing at original bones causing T-pose.
-- `npc_old_man.glb` present in `public/scenes/scene-01/` — not yet wired.
-- Exit zone system: glowing ring + 1.2s dwell trigger + `game:request-scene-change` → SceneView navigates cleanly.
-- Dev HUD: player X/Z/Y position readout (bottom-right, dev builds only).
-- TypeScript build: all CI errors resolved.
+- **Father-60yo** GLB carries **embedded** clips (`playEmbeddedAnimations` on scene-01). **Father-40yo outdoor** and **boy** are mesh + rig only — animation packs deferred.
+- **`npc-old-man.glb`** optimized + moved to `public/characters/npc/` ✓ (was: `public/scenes/scene-01/npc_old_man.glb`). Added to `NPC_CHARACTER_URLS.oldMan`. **Not yet wired in any scene.**
+- All NPC GLBs optimized via gltf-transform (WebP 1024px + meshopt): total 5.4MB for 4 models (was ~34MB+).
+- Scene-01 house GLBs optimized: total 4.5MB (was ~38MB including deleted 8k orphan).
+- `scripts/optimize-glb.sh` — standard pipeline for all incoming Blender exports.
+- Exit zone system, dev HUD, TypeScript build: unchanged, working.
 
-**What's broken / incomplete:** Scene-02 has no cliff GLB (procedural heightmap placeholder). Scenes 04–05 are structural stubs. Child avatar missing. `GameLogicModule` has no win/fail conditions. HUD is a stub. `npc_old_man.glb` sits in `scenes/scene-01/` — needs to move to `characters/npc/` per agreed structure.
+**What's broken / incomplete:** Scene-02 has no cliff GLB (procedural heightmap placeholder). Scenes 04–05 are structural stubs. `GameLogicModule` has no win/fail conditions. HUD is a stub. Father-40yo and boy have no animation clips wired.
 
 ## Active Work
 
@@ -28,18 +36,23 @@ _Last updated: 2026-03-30_
 ## Blockers & Open Questions
 
 - ~~**[2026-03-28]** Scene numbering mismatch~~ — **resolved 2026-03-28**. Code now matches game design order.
-- **[2026-03-28]** NPC models partially sourced: `npc_old_man.glb` (scene-01 legacy path). Father arc: `npc-father-40yo.glb` / `father-60.glb` in `public/characters/npc/`. Still missing: child avatar, elders ×2–3 for scene-05. P1 — child avatar blocks scene-03 player perspective.
+- **[2026-04-02]** ~~`npc_old_man.glb` scene-01 legacy path~~ — resolved. Moved + optimized to `public/characters/npc/npc-old-man.glb`, added to `NPC_CHARACTER_URLS.oldMan`. Wiring in scene-01 still pending.
+- **[2026-03-28]** NPC models: 4 models in `public/characters/npc/`, all optimized. Still missing: elders ×2–3 for scene-05.
 - **[2026-03-28]** `threejs-engine-dev` Phase 3d (camera strategy switching) must land before cinematic camera decisions are locked in Phase 4C.
 - **[2026-03-28]** Scene 4 (Roksana) requires dedicated polishing pass before it can be built. Structural placeholder contracts are stable.
 - **[2026-03-28]** Multiple TBD items in scene specs — Win B trigger, recognition reward, dad visual design. Resolve during each scene's authoring pass.
 
 ## Next Session
 
-> **Phase 4B continued:** Tune father NPC positions, rotations, and animation choices via visual testing. Wire `npc_old_man.glb` (currently in `public/scenes/scene-01/`) → move to `public/characters/npc/` and add as secondary NPC in scene-01. Add scene-05 bench (`classic_park_bench_1k.glb`) + elder stubs. Source child avatar for scene-03 player perspective.
+> **Phase 4B continued:** Wire `npc-old-man.glb` as secondary NPC in scene-01 (use `NPC_CHARACTER_URLS.oldMan`, position TBD via visual test). Add scene-05 bench (`classic_park_bench_1k.glb`) + elder stubs. Plan animation pack extraction: Blender re-export armature-only from father-60yo → `public/characters/animations/locomotion.glb` + `npc-social.glb`. Install KTX-Software to upgrade texture compression WebP → KTX2.
 
 ## Decision Log
 
 <!-- Append-only. One line per decision, newest first. -->
+- **2026-04-02** — Animation architecture decided: shared packs in `public/characters/animations/` — `locomotion.glb` (player, always loaded) + `npc-social.glb` (NPCs, lazy on viewport entry). Extract from father-60yo on next Blender re-export; current embedded clips remain until then.
+- **2026-04-02** — GLB naming convention: no resolution tags in filenames. Source Blender exports stored outside `public/`; only gltf-transform–optimized GLBs committed.
+- **2026-04-02** — `scripts/optimize-glb.sh` established as mandatory pipeline for all Blender GLB exports. Settings: meshopt + WebP 1024px + `--join false --simplify false --flatten false` (preserves skinned-mesh hierarchy). KTX2 deferred pending KTX-Software install.
+- **2026-04-02** — Web + Electron single asset set confirmed. 1024px WebP + meshopt covers both at typical third-person camera distances. Two-set pipeline unjustified at current game style and character count.
 - **2026-03-30** — `SceneBuilder.placeGltf` switched to `SkeletonUtils.clone` (imported as `cloneSkinnedRoot`). `gltf.scene.clone(true)` leaves `SkinnedMesh` referencing original bones; mixer animates invisible original, clone stays in T-pose.
 - **2026-03-30** — `GameplaySceneModule.resetFacing` reads `descriptor.character.rotationY` directly. `character.rotation.y` reads the root Group which is always 0; SceneBuilder applies yaw to the child FBX mesh for AABB alignment.
 - **2026-03-30** — `mountNpcStubs` receives `loadedGltfXZ: ReadonlyArray<readonly [number, number]>` from `SceneBuilderResult`. Stubs within 0.5 units of a successfully loaded GltfObject are suppressed — graceful degradation without removing the fallback stub from the descriptor.
