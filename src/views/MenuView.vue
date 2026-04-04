@@ -2,18 +2,28 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
+import { useInventoryStore } from '@/stores/inventory'
 import { SCENE_REGISTRY } from '@/scenes/registry'
+import PhoneSelector from '@/components/PhoneSelector.vue'
+import type { PhoneProfileId } from '@/characters/phoneProfiles'
 
 const router = useRouter()
 const gameStore = useGameStore()
+const inventoryStore = useInventoryStore()
 const isDev = import.meta.env.DEV
 
-onMounted(() => {
-  void gameStore.refreshCanContinue()
+onMounted(async () => {
+  await Promise.all([
+    gameStore.refreshCanContinue(),
+    inventoryStore.hydrate(),
+  ])
 })
 
-function playNew(): void {
+/** Phone selected at the profiler — always enters scene-01 as a fresh run. */
+function onPhoneSelected(id: PhoneProfileId): void {
+  inventoryStore.selectPhone(id)
   gameStore.discardPendingContinue()
+  gameStore.stageInitialSceneForNextPlay('scene-01')
   void router.push('/game')
 }
 
@@ -33,20 +43,32 @@ async function continueGame(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center min-h-screen bg-zinc-950 gap-4 select-none">
-    <div class="flex flex-col items-center gap-2 mb-8">
+  <div class="flex flex-col items-center justify-center min-h-screen bg-zinc-950 select-none px-6 py-10 gap-8">
+
+    <!-- Title -->
+    <div class="flex flex-col items-center gap-2">
       <h1 class="text-5xl font-bold tracking-tight text-white">Three Dreams</h1>
       <p class="text-xs font-medium tracking-[0.3em] uppercase text-zinc-500">Three Dreams · @base</p>
     </div>
 
+    <!-- Phone profiler accordion -->
+    <div class="w-full max-w-xl flex flex-col gap-3">
+      <p class="text-zinc-400 text-xs font-medium tracking-[0.2em] uppercase text-center">
+        Choose your phone
+      </p>
+
+      <!-- Accordion: 300px tall, full width up to max-w-xl -->
+      <div class="h-72">
+        <PhoneSelector @select="onPhoneSelected" />
+      </div>
+
+      <p class="text-zinc-600 text-[10px] text-center leading-relaxed">
+        Your phone shapes how the world responds to you.
+      </p>
+    </div>
+
+    <!-- Secondary actions -->
     <div class="flex flex-col gap-3 w-52">
-      <button
-        class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
-        type="button"
-        @click="playNew"
-      >
-        Play
-      </button>
       <button
         class="w-full px-6 py-3 rounded-xl text-sm font-semibold transition-colors"
         :class="
@@ -60,6 +82,7 @@ async function continueGame(): Promise<void> {
       >
         Continue
       </button>
+
       <template v-if="isDev">
         <div class="flex flex-col gap-1 pt-1">
           <p class="text-[10px] font-mono uppercase tracking-widest text-zinc-500 text-center">Scenes</p>
@@ -74,6 +97,7 @@ async function continueGame(): Promise<void> {
           </button>
         </div>
       </template>
+
       <button
         v-if="isDev"
         class="w-full px-6 py-3 bg-teal-800 hover:bg-teal-700 active:bg-teal-900 text-white text-sm font-semibold rounded-xl transition-colors"

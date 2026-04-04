@@ -1,11 +1,11 @@
 # STATE.md — three-dreams
 
 ## SNAPSHOT
-Phase: 4B | Last: 2026-04-02 | Stack: Vue 3 + @base fork (pwa-shell)
-Working: Scenes 01–03, all NPC GLBs optimized + correctly placed, scripts/optimize-glb.sh pipeline
-Broken: Scenes 04–05 stubs, no win conditions, HUD stub, no audio tracks
+Phase: 4B | Last: 2026-04-03 | Stack: Vue 3 + @base fork (pwa-shell)
+Working: Scenes 01–03, NPC animation pack pipeline, phone profiler menu (3 phone accordion, inventory store)
+Broken: Scenes 04–05 stubs, no win conditions, HUD stub, no audio tracks, phone origins may need Blender fix
 Blocker: Phase 3d (camera) must land before Phase 4C cinematic decisions
-Next: Wire npc-old-man.glb as secondary NPC in scene-01; add scene-05 bench + elder stubs; extract animations to shared packs
+Next: Verify phone GLB origins in Blender (center to geometry); wire animationPackUrls on NPC GltfObjects; verify base pack clip names; add scene-05 bench + elder stubs
 
 ---
 
@@ -15,23 +15,24 @@ _Last updated: 2026-04-02_
 
 **What's working:**
 - Scene registry covers all 5 scenes in GDD order. Atmosphere profiles in place (`realWorld`, `realWorldWarm`, `dreamWorld`).
-- Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). **Father-60yo model** (`npc-father-60yo.glb` via `NPC_CHARACTER_URLS`) placed at (-18, -14, y:0), looping `look_around`. Capsule stub suppressed when GLB loads.
+- Scene-01: mesh nav GLB, steep slope tuning (55°/2.6m), dead sun orb in sky, exit ring on hilltop (→ scene-02). **Man-60yo** (`npc-man-60yo-casual.glb`) placed at (-18, -14, y:0), looping `look_around` via embedded clips. Capsule stub suppressed when GLB loads.
 - Scene-02: cliff procedural terrain, dreamWorld atmosphere. Lost-in-woods forest (4 scatter fields ~115 trees + rocks + stone pile). Exit ring (x:10, y:8.6, z:-0.2 → scene-03). secretDoubleJump wired. Fall below Y:-15 → respawn fixed at rock top (0, 0).
-- Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (→ scene-01). **Father-40yo** (`npc-father-40yo-outdoor.glb`, bind pose — no embedded clips) at (6.5, -0.2, 4.6). **Player** uses child `npc-boy-5yo.glb` at (8.2, 5.4) facing lake (Math.PI/2).
+- Scene-03: mesh nav GLB aligned, lake walkable, exit ring near house (→ scene-01). **Man-40yo** (`npc-man-40yo-outdoors.glb`) at (6.5, -0.2, 4.6). **Player** uses `npc-boy-5yo-outdoors.glb` at (8.2, 5.4) facing lake (Math.PI/2).
 - `npcStubs` + `fallRespawn` on `SceneGameplayPolicy`: capsule spawning in `mountNpcStubs(ctx)`. Stubs suppressed at positions where GltfObject loaded successfully.
 - `classic_park_bench_1k/2k.glb` present in `public/models/` — ready to wire in scene-05.
-- **Father-60yo** GLB carries **embedded** clips (`playEmbeddedAnimations` on scene-01). **Father-40yo outdoor** and **boy** are mesh + rig only — animation packs deferred.
-- **`npc-old-man.glb`** optimized + moved to `public/characters/npc/` ✓ (was: `public/scenes/scene-01/npc_old_man.glb`). Added to `NPC_CHARACTER_URLS.oldMan`. **Not yet wired in any scene.**
-- All NPC GLBs optimized via gltf-transform (WebP 1024px + meshopt): total 5.4MB for 4 models (was ~34MB+).
+- **Man-60yo** GLB carries **embedded** clips (`playEmbeddedAnimations` on scene-01). **Man-40yo** and **boy** are mesh + rig only — ready to receive `animationPackUrls`.
+- All NPC GLBs optimized via gltf-transform (WebP 1024px + meshopt): 5 files, ~4.8MB total. `npc-man-40yo-outdoors.glb` compressed this session (6.56MB → 1.56MB).
+- `animations_base.glb` (728KB) + `animations_extended.glb` (1.56MB) in `public/characters/npc/`.
+- `@base/scene-builder` now supports `GltfObject.animationPackUrls` — loads + retargets clips to NPC rig, drives mixer via existing `embeddedGltfMixers` tick.
 - Scene-01 house GLBs optimized: total 4.5MB (was ~38MB including deleted 8k orphan).
 - `scripts/optimize-glb.sh` — standard pipeline for all incoming Blender exports.
 - Exit zone system, dev HUD, TypeScript build: unchanged, working.
 
-**What's broken / incomplete:** Scene-02 has no cliff GLB (procedural heightmap placeholder). Scenes 04–05 are structural stubs. `GameLogicModule` has no win/fail conditions. HUD is a stub. Father-40yo and boy have no animation clips wired.
+**What's broken / incomplete:** Scene-02 has no cliff GLB (procedural heightmap placeholder). Scenes 04–05 are structural stubs. `GameLogicModule` has no win/fail conditions. HUD is a stub. Man-40yo and boy have no `animationPackUrls` wired yet (engine supports it, scene descriptors not yet updated). Clip names in `animations_base.glb` unverified — need to inspect + match against `loopClipNameContains`.
 
 ## Active Work
 
-- Phase 4B in progress — real NPC GLBs wired in scenes 01 and 03 with verified animations
+- Phase 4B in progress — NPC GLB naming harmonized, animation pack pipeline implemented in engine
 
 ## Blockers & Open Questions
 
@@ -44,11 +45,21 @@ _Last updated: 2026-04-02_
 
 ## Next Session
 
-> **Phase 4B continued:** Wire `npc-old-man.glb` as secondary NPC in scene-01 (use `NPC_CHARACTER_URLS.oldMan`, position TBD via visual test). Add scene-05 bench (`classic_park_bench_1k.glb`) + elder stubs. Plan animation pack extraction: Blender re-export armature-only from father-60yo → `public/characters/animations/locomotion.glb` + `npc-social.glb`. Install KTX-Software to upgrade texture compression WebP → KTX2.
+> **Phase 4B continued:**
+> 1. Inspect `animations_base.glb` clip names (Three.js GLTFLoader or Blender NLA editor) — confirm which clip should be `loopClipNameContains` for idle/look-around on man-40yo.
+> 2. Wire `animationPackUrls: npcAnimPacks()` + `loopClipNameContains` on man-40yo GltfObject in scene-03.
+> 3. Wire man-60yo in scene-01 as secondary NPC (position TBD via visual test) using `NPC_CHARACTER_URLS.man60yCasual`.
+> 4. Add scene-05 bench (`classic_park_bench_1k.glb`) + elder stubs.
+> 5. Decide whether to migrate man-60yo from embedded clips to the shared pack (or keep both paths).
+> 6. Install KTX-Software to upgrade texture compression WebP → KTX2.
 
 ## Decision Log
 
 <!-- Append-only. One line per decision, newest first. -->
+- **2026-04-03** — Phone profiler menu: `PhoneSelector` accordion replaces Play button. Three phone GLBs (`extreme/pragmatic/comfortable`) compressed (4.83MB → 693KB total). `useInventoryStore` (Pinia, persisted) stores `phoneProfileId` + NPC item slots. Phone selection always enters scene-01 as a fresh run. `PhoneViewer` uses standalone Three.js (no full engine context); centers model via Box3 to compensate for Blender origin offset.
+- **2026-04-03** — NPC model naming convention changed to generic role + variant (e.g. `npc-man-40yo-outdoors.glb`) instead of relationship-based (`npc-father-40yo.glb`). Allows reuse across scenes without implying the player-NPC relationship in the filename. `NPC_CHARACTER_URLS` keys updated to match: `man60yCasual`, `man40yOutdoors`, `boy5yOutdoors`.
+- **2026-04-03** — `GltfObject.animationPackUrls` added to `@base/scene-builder` `SceneDescriptor`. `SceneBuilder.placeGltf` loads packs in parallel, retargets clips to the NPC's SkinnedMesh rig, drives mixer via existing `embeddedGltfMixers` tick. `npcAnimPacks()` helper in `npcUrls.ts` returns `[base]` by default, `[base, extended]` when `{ extended: true }`. Default = base; scene opt-in = extended.
+- **2026-04-03** — `npc-man-40yo-outdoors.glb` compressed (Blender re-fabrication → 6.56MB, post-optimize → 1.56MB, 76% reduction). Both animation packs now colocated in `public/characters/npc/` alongside mesh GLBs.
 - **2026-04-02** — Animation architecture decided: shared packs in `public/characters/animations/` — `locomotion.glb` (player, always loaded) + `npc-social.glb` (NPCs, lazy on viewport entry). Extract from father-60yo on next Blender re-export; current embedded clips remain until then.
 - **2026-04-02** — GLB naming convention: no resolution tags in filenames. Source Blender exports stored outside `public/`; only gltf-transform–optimized GLBs committed.
 - **2026-04-02** — `scripts/optimize-glb.sh` established as mandatory pipeline for all Blender GLB exports. Settings: meshopt + WebP 1024px + `--join false --simplify false --flatten false` (preserves skinned-mesh hierarchy). KTX2 deferred pending KTX-Software install.

@@ -105,11 +105,11 @@ export const scene01: SceneDescriptor = {
       rotationY: GLB_ROTATION,
       allowBelowSeaLevel: true,
     },
-    // ── Father (60yo) on the ascent path. Position matches npcStub fallback. ─
+    // ── Dad (60yo, casual) on the ascent path. Position matches npcStub fallback. ─
     // Scale / rotationY need visual tuning. No loopClipNameContains → plays clip[0] first.
     {
       type: 'gltf',
-      url: NPC_CHARACTER_URLS.father60,
+      url: NPC_CHARACTER_URLS.man60yCasual,
       x: -18,
       z: -14,
       scale: 2.5,
