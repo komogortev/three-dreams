@@ -3,6 +3,7 @@ import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
 import { realWorld } from '@/scenes/atmosphereProfiles'
 import type { SceneGameplayPolicy } from '@/scenes/types'
 import { NPC_CHARACTER_URLS, NPC_ANIM_URLS, NPC_BASE_ANIM, NPC_EXTENDED_ANIM } from '@/characters/npcUrls'
+import { DAD_SCENE_01_ID } from '@/scenes/scene-01/reactions'
 
 /** Mixamo Remy (skin) — path must be `encodeURI` if it contains spaces. */
 export const MIXAMO_REMY_FBX = encodeURI('/Remy.fbx')
@@ -43,6 +44,12 @@ export const gameplay: SceneGameplayPolicy = {
   // Dad (old form) — on the ascent path between road spawn and hilltop exit (tune with dev HUD).
   npcStubs: [
     { x: -18, z: -14, color: 0x5c5348, capsuleLength: 0.75, capsuleRadius: 0.26 },
+  ],
+
+  // Reaction Engine NPC entries — links entityIds to world positions for proximity + interact.
+  // npcGltfIndex: 0 = first animationPackUrls object in descriptor.objects (the dad GLB).
+  npcEntries: [
+    { entityId: DAD_SCENE_01_ID, x: -18, z: -14, proximityRadius: 4, npcGltfIndex: 0 },
   ],
 }
 
