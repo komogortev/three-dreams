@@ -1,28 +1,38 @@
 ---
-description: Workspace context for first-game — applies every session
+description: Workspace context for three-dreams game fork — applies every session
 alwaysApply: true
 ---
 
-# first-game — Workspace Context
+# three-dreams — Workspace Context
 
 ## Role of This Project
-This is the **Phase 4 game fork** — a standalone app forked from `BASE/pwa-shell`. It hosts the shipping **game loop** (menus, `GameLogicModule`, scenes) while consuming `@base/*` packages from `SHARED/`.
+
+This is the **Phase 4 game fork** — *Three Dreams* — a standalone Vue 3 PWA forked from `BASE/pwa-shell`. It hosts the shipping game loop (menus, `GameLogicModule`, scenes, NPC wiring) while consuming `@base/*` packages from `SHARED/`. First game experience built on the @base platform.
+
+**Current phase: 4B** — Real NPC GLBs wired in scenes 01 and 03 with verified animations.
+
+**Narrative:** Prodigal Son arc. Five scenes across two planes (real world chibi / dream world realistic).
 
 ## Ecosystem Topology
+
 ```
 e:/Projects/
-  first-game/            ← THIS repo — Vue 3 PWA + Three.js stack
-  SHARED/packages/       ← @base/* packages (engine-core, threejs-engine, input, audio, …)
+  three-dreams/          ← THIS repo — Vue 3 PWA + Three.js stack
+  SHARED/packages/       ← @base/* packages (engine-core, threejs-engine, player-three,
+                            scene-builder, camera-three, input, audio)
   BASE/pwa-shell/        ← upstream shell template
-  threejs-engine-dev/    ← harness for engine/scene authoring (sibling, not a dependency)
+  threejs-engine-dev/    ← Phase 3d harness (sibling — Phase 4C blocked on Phase 3d)
 ```
 
 ## Code Placement Rules
+
 - Reusable runtime → `SHARED/packages/` as `@base/*`
-- Game rules, narrative, Pinia game state → this repo (`GameLogicModule`, stores, views)
-- Heavy scene authoring / editor → prefer `threejs-engine-dev`; promote stable pieces to SHARED
+- Game rules, narrative, Pinia game state → this repo (`GameLogicModule`, stores, views, scenes)
+- Heavy scene authoring / editor tooling → prefer `threejs-engine-dev`; promote stable pieces to SHARED
+- Do not edit `@base/*` packages directly from this repo — use pnpm workspace links
 
 ## Stack
-Vue 3 · TypeScript strict · Tailwind CSS · Vue Router · Pinia · Vite · Vitest  
-Three.js · `@base/threejs-engine` · `@base/input` · `@base/audio`  
-Modules: `@base/engine-core` mount contract — `ThreeModule` + `mountChild()` for input, audio, game logic
+
+Vue 3 · TypeScript strict · Tailwind CSS · Vue Router · Pinia · Vite · Vitest
+Three.js · `@base/threejs-engine` · `@base/player-three` · `@base/scene-builder` · `@base/camera-three` · `@base/input` · `@base/audio`
+Game: `GameLogicModule` · `useGameStore` · scene registry (`scenes/registry.ts`) · `SceneGameplayPolicy`

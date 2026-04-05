@@ -14,6 +14,7 @@ export type SceneGameplayPolicy = Pick<
   | 'exitZones'
   | 'sunOrb'
   | 'npcStubs'
+  | 'npcEntries'
   | 'fallRespawn'
   | 'debugClipResolution'
 >

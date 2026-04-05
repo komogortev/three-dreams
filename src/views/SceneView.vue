@@ -17,6 +17,9 @@ import { getSceneEntry, getSceneNavigationMesh } from '@/scenes/registry'
 import { useShellContext } from '@/composables/useShellContext'
 import { useShellStore } from '@/stores/shell'
 import { useGameStore } from '@/stores/game'
+import { ReactionEngine } from '@/reaction'
+import { dadScene01Reactions, DAD_SCENE_01_ID } from '@/scenes/scene-01/reactions'
+import DialogPanel from '@/components/DialogPanel.vue'
 
 const router = useRouter()
 const context = useShellContext()
@@ -30,6 +33,10 @@ const audioModule = new AudioModule()
 
 const initialSceneId = gameStore.pullBootstrapSceneId() ?? 'scene-01'
 const gameLogic = new GameLogicModule({ initialSceneId })
+const reactionEngine = new ReactionEngine({
+  getFlag: (k) => gameLogic.getMechanicFlag(k),
+  setFlag: (k, v) => gameLogic.setMechanicFlag(k, v),
+})
 const sceneRegistryEntry = getSceneEntry(initialSceneId)
 const sceneGameplayPolicy = getSceneGameplayPolicy(initialSceneId)
 const sceneModule = new GameplaySceneModule({
@@ -110,7 +117,16 @@ onMounted(async () => {
   // must be explicitly unlocked after construction.
   await audioModule.resume()
   await engine.mountChild('game-logic', gameLogic)
+  await engine.mountChild('reaction-engine', reactionEngine)
   await engine.mountChild('scene', sceneModule)
+
+  // Register scene-specific reactions
+  if (initialSceneId === 'scene-01') {
+    for (const { stimulus, entry } of dadScene01Reactions) {
+      reactionEngine.register(DAD_SCENE_01_ID, stimulus, entry)
+    }
+  }
+
   worldReady.value = true
 
   // Guard against component unmounting mid-await (navigation race / double-click).
@@ -189,6 +205,8 @@ async function goToMenu(): Promise<void> {
       />
       <span>Loading world…</span>
     </div>
+
+    <DialogPanel />
 
     <div class="absolute top-4 left-4 z-40">
       <button

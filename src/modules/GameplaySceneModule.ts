@@ -27,6 +27,7 @@ import { MeshTerrainSampler } from '@/utils/MeshTerrainSampler'
 import { createSceneBuildOptions } from '@/utils/sceneBuildOptions'
 import { resolvePublicUrl } from '@/utils/resolvePublicUrl'
 import { GAME_EVENTS, type GameSceneChangeRequestPayload } from '@/game/sessionTypes'
+import { REACTION_EVENTS, type PlayAnimationPayload, type StimulusEvent } from '@/reaction'
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -170,6 +171,29 @@ export interface GameplaySceneConfig {
     capsuleRadius?: number
     color?: number
   }>
+  /**
+   * Named NPC entries for the Reaction Engine.
+   * Each entry links an entityId to a world position and a proximity trigger radius.
+   * Position should match the corresponding GltfObject placement in SceneDescriptor.objects.
+   *
+   * On mount: bounding-sphere proximity is tracked per frame and
+   * `reaction:stimulus` events (proximity_enter / proximity_exit / interact) are emitted.
+   *
+   * `npcGltfIndex` — 0-based index into the NpcGltfEntries array returned by SceneBuilder
+   * (i.e. the nth object in descriptor.objects that has animationPackUrls).
+   * Used to route `reaction:play-animation` to the correct AnimationMixer.
+   */
+  npcEntries?: Array<{
+    entityId: string
+    x: number
+    z: number
+    y?: number
+    /** Trigger radius in metres. Default 3.5. */
+    proximityRadius?: number
+    /** 0-based index into SceneBuilder NpcGltfEntry array for animation routing. */
+    npcGltfIndex?: number
+  }>
+
   /**
    * Teleport the player when they fall below `triggerBelowY`.
    *
@@ -355,6 +379,18 @@ export class GameplaySceneModule extends BaseModule {
   // Exit zone dwell accumulators — one entry per exitZones[] index.
   private _exitZoneDwell: number[] = []
   private _exitTriggered = false
+
+  // ── NPC proximity + reaction bridge ───────────────────────────────────────
+  /** World position of each npcEntry keyed by entityId. */
+  private _npcPositions = new Map<string, THREE.Vector3>()
+  /** Whether the player was inside the proximity radius last frame. */
+  private _npcInRange   = new Map<string, boolean>()
+  /** Tracks whether a dialog is currently showing — suppresses interact stimulus. */
+  private _dialogActive = false
+  private _offReactionAnim:    (() => void) | null = null
+  private _offDialogStart:     (() => void) | null = null
+  private _offDialogEnd:       (() => void) | null = null
+  private _offInteractAction:  (() => void) | null = null
 
   constructor(
     options: Partial<GameplaySceneConfig> & { descriptor?: SceneDescriptor } = {},
@@ -557,6 +593,7 @@ export class GameplaySceneModule extends BaseModule {
       }
 
       this.mountNpcStubs(ctx, result.loadedGltfXZ)
+      this.mountNpcEntries()
     } else {
       this.effectiveRadius = this.cfg.groundRadius
       this.character = this.buildDefaultScene(ctx)
@@ -605,6 +642,22 @@ export class GameplaySceneModule extends BaseModule {
       }
     })
 
+    // ── Reaction Engine bridge ─────────────────────────────────────────────────
+    this._offReactionAnim = context.eventBus.on(REACTION_EVENTS.PLAY_ANIMATION, (raw) => {
+      this.handleNpcAnimation(raw as PlayAnimationPayload)
+    })
+    this._offDialogStart = context.eventBus.on(REACTION_EVENTS.DIALOG_START, () => {
+      this._dialogActive = true
+    })
+    this._offDialogEnd = context.eventBus.on(REACTION_EVENTS.DIALOG_END, () => {
+      this._dialogActive = false
+    })
+    this._offInteractAction = context.eventBus.on('input:action', (raw) => {
+      const e = raw as InputActionEvent
+      if (e.action !== 'interact' || e.type !== 'pressed') return
+      if (!this._dialogActive) this.emitInteractStimulus()
+    })
+
     this.unregisterSystem = ctx.registerSystem('third-person-scene', (rawDelta) => {
       let delta: number
       if (this._devTimeScale === 0) {
@@ -626,6 +679,18 @@ export class GameplaySceneModule extends BaseModule {
     this.unregisterSystem?.()
     this.offInputAxis?.()
     this.offInputAction?.()
+
+    this._offReactionAnim?.()
+    this._offDialogStart?.()
+    this._offDialogEnd?.()
+    this._offInteractAction?.()
+    this._offReactionAnim   = null
+    this._offDialogStart    = null
+    this._offDialogEnd      = null
+    this._offInteractAction = null
+    this._npcPositions.clear()
+    this._npcInRange.clear()
+    this._dialogActive = false
 
     this.disposeEmbeddedGltfAnimations?.()
     this.disposeEmbeddedGltfAnimations = undefined
@@ -677,6 +742,109 @@ export class GameplaySceneModule extends BaseModule {
       mesh.position.set(npc.x, groundY + rad + len * 0.5, npc.z)
       ctx.scene.add(mesh)
     }
+  }
+
+  // ─── NPC entry helpers ────────────────────────────────────────────────────────
+
+  /** Populate position + state maps from cfg.npcEntries after sampler is ready. */
+  private mountNpcEntries(): void {
+    if (!this.cfg.npcEntries?.length) return
+    for (const entry of this.cfg.npcEntries) {
+      const y = entry.y ?? this.sampler?.sample(entry.x, entry.z) ?? 0
+      this._npcPositions.set(entry.entityId, new THREE.Vector3(entry.x, y, entry.z))
+      this._npcInRange.set(entry.entityId, false)
+    }
+  }
+
+  /**
+   * Sphere proximity check — emits reaction:stimulus on enter / exit transitions.
+   * Called every simulated frame from tick().
+   */
+  private tickNpcProximity(ctx: ThreeContext): void {
+    if (!this.cfg.npcEntries?.length) return
+    const px = this.character.position.x
+    const pz = this.character.position.z
+    for (const entry of this.cfg.npcEntries) {
+      const npcPos = this._npcPositions.get(entry.entityId)
+      if (!npcPos) continue
+      const r   = entry.proximityRadius ?? 3.5
+      const dx  = px - npcPos.x
+      const dz  = pz - npcPos.z
+      const inRange  = dx * dx + dz * dz <= r * r
+      const wasInRange = this._npcInRange.get(entry.entityId) ?? false
+      if (inRange === wasInRange) continue
+      this._npcInRange.set(entry.entityId, inRange)
+      const stimulus: StimulusEvent = {
+        type:     inRange ? 'proximity_enter' : 'proximity_exit',
+        entityId: entry.entityId,
+        sourceId: 'player',
+      }
+      ctx.eventBus.emit(REACTION_EVENTS.STIMULUS, stimulus)
+    }
+  }
+
+  /**
+   * Find the nearest npcEntry within proximity range and emit an interact stimulus.
+   * Only called when no dialog is active.
+   */
+  private emitInteractStimulus(): void {
+    if (!this.cfg.npcEntries?.length) return
+    const px = this.character.position.x
+    const pz = this.character.position.z
+    let nearest: { entityId: string; distSq: number } | null = null
+    for (const entry of this.cfg.npcEntries) {
+      const npcPos = this._npcPositions.get(entry.entityId)
+      if (!npcPos) continue
+      const r = entry.proximityRadius ?? 3.5
+      const dx = px - npcPos.x
+      const dz = pz - npcPos.z
+      const distSq = dx * dx + dz * dz
+      if (distSq <= r * r && (!nearest || distSq < nearest.distSq)) {
+        nearest = { entityId: entry.entityId, distSq }
+      }
+    }
+    if (!nearest) return
+    const stimulus: StimulusEvent = {
+      type:     'interact',
+      entityId: nearest.entityId,
+      sourceId: 'player',
+    }
+    ;(this.context as EngineContext).eventBus.emit(REACTION_EVENTS.STIMULUS, stimulus)
+  }
+
+  /**
+   * Route a play-animation reaction to the correct NpcGltfEntry mixer.
+   * Resolves by clipIndex (preferred for pack-driven NPCs) or clipName substring.
+   */
+  private handleNpcAnimation(p: PlayAnimationPayload): void {
+    if (!this.cfg.npcEntries?.length) return
+    const entryConfig = this.cfg.npcEntries.find(e => e.entityId === p.entityId)
+    if (!entryConfig) return
+    const idx = entryConfig.npcGltfIndex ?? 0
+    const npcEntry: NpcGltfEntry | undefined = this._npcGltfEntries[idx]
+    if (!npcEntry) return
+
+    let clip: THREE.AnimationClip | undefined
+    if (p.clipIndex !== undefined) {
+      clip = npcEntry.clips[p.clipIndex]
+    } else if (p.clipName) {
+      clip = npcEntry.clips.find(c => c.name.toLowerCase().includes(p.clipName!.toLowerCase()))
+    }
+    if (!clip) {
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[GameplaySceneModule] handleNpcAnimation: no clip found for entity "${p.entityId}"`,
+          p,
+        )
+      }
+      return
+    }
+
+    npcEntry.mixer.stopAllAction()
+    const action = npcEntry.mixer.clipAction(clip)
+    action.loop              = p.loop ? THREE.LoopRepeat : THREE.LoopOnce
+    action.clampWhenFinished = !p.loop
+    action.reset().play()
   }
 
   // ─── Default flat-disc scene (no descriptor) ─────────────────────────────────
@@ -800,6 +968,7 @@ export class GameplaySceneModule extends BaseModule {
     this.failedJumpAnimTrigger = false
     this.updateSecretWindow(simDelta, snap.velocity.y)
     this.tickExitZones(simDelta, ctx)
+    this.tickNpcProximity(ctx)
 
     const fpMode = this.gameplayCam.getMode() === 'first-person'
     this.gameplayCam.update(
