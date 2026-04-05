@@ -2,7 +2,7 @@ import type { SceneDescriptor } from '@base/scene-builder'
 import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
 import { realWorld } from '@/scenes/atmosphereProfiles'
 import type { SceneGameplayPolicy } from '@/scenes/types'
-import { NPC_CHARACTER_URLS } from '@/characters/npcUrls'
+import { NPC_CHARACTER_URLS, NPC_ANIM_URLS, NPC_BASE_ANIM, NPC_EXTENDED_ANIM } from '@/characters/npcUrls'
 
 /** Mixamo Remy (skin) — path must be `encodeURI` if it contains spaces. */
 export const MIXAMO_REMY_FBX = encodeURI('/Remy.fbx')
@@ -93,7 +93,7 @@ export const scene01: SceneDescriptor = {
     modelFitHeight: 1.78,
     pruneExtraSkinnedMeshes: false,
     rotationY: Math.PI,
-    animationClipUrls: MIXAMO_ANIMATION_CLIP_URLS,
+    animationClipUrls: [...MIXAMO_ANIMATION_CLIP_URLS, NPC_ANIM_URLS.base],
   },
   objects: [
     {
@@ -106,7 +106,7 @@ export const scene01: SceneDescriptor = {
       allowBelowSeaLevel: true,
     },
     // ── Dad (60yo, casual) on the ascent path. Position matches npcStub fallback. ─
-    // Scale / rotationY need visual tuning. No loopClipNameContains → plays clip[0] first.
+    // Scale / rotationY need visual tuning.
     {
       type: 'gltf',
       url: NPC_CHARACTER_URLS.man60yCasual,
@@ -115,8 +115,8 @@ export const scene01: SceneDescriptor = {
       scale: 2.5,
       y: 0,
       rotationY: -Math.PI * (11 / 18), // −110° CW
-      playEmbeddedAnimations: true,
-      loopClipNameContains: 'look_around',
+      animationPackUrls: [NPC_ANIM_URLS.extended],
+      loopClipIndex: NPC_EXTENDED_ANIM.wait,
     },
   ],
 }

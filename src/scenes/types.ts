@@ -15,4 +15,5 @@ export type SceneGameplayPolicy = Pick<
   | 'sunOrb'
   | 'npcStubs'
   | 'fallRespawn'
+  | 'debugClipResolution'
 >

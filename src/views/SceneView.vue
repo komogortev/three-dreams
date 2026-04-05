@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-
 import { ThreeModule } from '@base/threejs-engine'
 import { InputModule } from '@base/input'
 import { AudioModule } from '@base/audio'
@@ -95,6 +94,7 @@ const playerPos = ref('')
 let posTimer: ReturnType<typeof setInterval> | undefined
 let offSceneChange: (() => void) | undefined
 
+
 onMounted(async () => {
   if (!container.value) return
 
@@ -146,6 +146,7 @@ onMounted(async () => {
       const p = sceneModule.getPlayerPosition()
       playerPos.value = `x:${p.x.toFixed(1)} z:${p.z.toFixed(1)} y:${p.y.toFixed(1)}`
     }, 250)
+
   }
 })
 

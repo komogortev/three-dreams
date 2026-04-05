@@ -21,6 +21,7 @@ import {
   EnvironmentRuntime,
   SceneBuilder,
   type SceneDescriptor,
+  type NpcGltfEntry,
 } from '@base/scene-builder'
 import { MeshTerrainSampler } from '@/utils/MeshTerrainSampler'
 import { createSceneBuildOptions } from '@/utils/sceneBuildOptions'
@@ -266,11 +267,11 @@ function playerMovementDebugEnabled(): boolean {
   try {
     const sp = new URLSearchParams(window.location.search)
     if (sp.get('debugMove') === '1' || sp.get('debugMove') === 'true') return true
-    if (window.localStorage.getItem('debugPlayerMove') === '0') return false
+    if (window.localStorage.getItem('debugPlayerMove') === '1') return true
   } catch {
     /* private mode / no storage */
   }
-  return true
+  return false
 }
 
 // ─── Module ──────────────────────────────────────────────────────────────────
@@ -309,6 +310,8 @@ export class GameplaySceneModule extends BaseModule {
   private unregisterSystem: (() => void) | null = null
   /** From {@link SceneBuilderResult.disposeEmbeddedGltfAnimations} — GLTF props with embedded clips. */
   private disposeEmbeddedGltfAnimations: (() => void) | undefined = undefined
+  /** From {@link SceneBuilderResult.npcGltfEntries} — exposed for dev animation cycling. */
+  private _npcGltfEntries: NpcGltfEntry[] = []
   private environment: EnvironmentRuntime | null = null
 
   private animRig: CharacterAnimationRig | null = null
@@ -432,6 +435,11 @@ export class GameplaySceneModule extends BaseModule {
     return this.character.position.clone()
   }
 
+  /** DEV: mixer + retargeted clip list for each NPC driven by animationPackUrls. */
+  getNpcGltfEntries(): NpcGltfEntry[] {
+    return this._npcGltfEntries
+  }
+
   setCameraMode(mode: GameplayCameraMode): void {
     if (mode === 'third-person') {
       if (typeof document !== 'undefined' && document.exitPointerLock) {
@@ -464,6 +472,7 @@ export class GameplaySceneModule extends BaseModule {
     if (this.descriptor) {
       const result = await SceneBuilder.build(ctx, this.descriptor, createSceneBuildOptions())
       this.disposeEmbeddedGltfAnimations = result.disposeEmbeddedGltfAnimations
+      this._npcGltfEntries = result.npcGltfEntries
       if (!result.character || result.characterTerrainYOffset === undefined) {
         throw new Error(
           'GameplaySceneModule: SceneBuilder returned no character — remove skipPlayerCharacter from the descriptor.',

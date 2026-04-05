@@ -15,8 +15,7 @@ export const NPC_CHARACTER_URLS = {
   /**
    * Man ~60yo, casual winter outfit. Elder form of the dad arc.
    * Scene-01 (path to hilltop) + scene-05 (park bench).
-   * Carries **embedded** clips — use `{ playEmbeddedAnimations: true }` on the GltfObject
-   * until the shared animation pack pipeline fully replaces embedded clips.
+   * Driven by shared animation pack — use `animationPackUrls: npcAnimPacks()` on the GltfObject.
    */
   man60yCasual: '/characters/npc/npc-man-60yo-casual.glb',
 
@@ -64,3 +63,58 @@ export function npcAnimPacks(opts?: { extended?: boolean }): string[] {
     ? [NPC_ANIM_URLS.base, NPC_ANIM_URLS.extended]
     : [NPC_ANIM_URLS.base]
 }
+
+// ─── Base pack clip index map ──────────────────────────────────────────────────
+
+/**
+ * Verified clip indices for `animations_base.glb`.
+ * Order confirmed by visual inspection via the DEV animation cycling overlay.
+ *
+ * Use with `loopClipIndex` on a GltfObject:
+ * @example
+ * loopClipIndex: NPC_BASE_ANIM.idle
+ */
+export const NPC_BASE_ANIM = {
+  swim:      0,
+  fall_dead: 1,
+  wait:      2,
+  run:       3,
+  idle:      4,
+  jump:      5,
+  walk:      6,
+  sit:       7,
+} as const
+
+export type NpcBaseAnimName = keyof typeof NPC_BASE_ANIM
+
+// ─── Extended pack clip index map ─────────────────────────────────────────────
+
+/**
+ * Verified clip indices for `animations_extended.glb`.
+ * Order confirmed by visual inspection via the DEV animation cycling overlay.
+ *
+ * jump and walk each appear twice (variant B at indices 12/13).
+ *
+ * Use with `loopClipIndex` on a GltfObject that loads the extended pack:
+ * @example
+ * animationPackUrls: [NPC_ANIM_URLS.extended],
+ * loopClipIndex: NPC_EXTENDED_ANIM.look_around
+ */
+export const NPC_EXTENDED_ANIM = {
+  jump_01:     0,
+  walk_01:     1,
+  wait:        2,
+  sit:         3,
+  laugh_01:    4,
+  idle:        5,
+  run:         6,
+  sob:         7,
+  look_around: 8,
+  laugh_02:    9,
+  fall:        10,
+  swim:        11,
+  jump_02:     12,
+  walk_02:     13,
+} as const
+
+export type NpcExtendedAnimName = keyof typeof NPC_EXTENDED_ANIM

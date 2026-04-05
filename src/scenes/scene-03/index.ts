@@ -2,7 +2,7 @@ import type { SceneDescriptor } from '@base/scene-builder'
 import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
 import { realWorldWarm } from '@/scenes/atmosphereProfiles'
 import type { SceneGameplayPolicy } from '@/scenes/types'
-import { NPC_CHARACTER_URLS } from '@/characters/npcUrls'
+import { NPC_CHARACTER_URLS, NPC_ANIM_URLS, npcAnimPacks, NPC_BASE_ANIM } from '@/characters/npcUrls'
 
 const GLB_SCALE = 1.7
 
@@ -22,6 +22,7 @@ export const navigationMesh = {
  * Gentle lakeside terrain — default 35° slope limit is adequate.
  */
 export const gameplay: SceneGameplayPolicy = {
+  debugClipResolution: true,
   // ── Exit: circle next to house → return to scene-01 (full loop). ─────────
   exitZones: [
     { x: 0.6, y: -0.7, z: -8.5, radius: 3, targetSceneId: 'scene-01', ringColor: 0xffaa44 },
@@ -64,7 +65,7 @@ export const scene03: SceneDescriptor = {
     pruneExtraSkinnedMeshes: false,
     terrainFootprintRadius: 0.14,
     rotationY: Math.PI / 2, // 90°
-    animationClipUrls: [...MIXAMO_FBX_CLIP_URLS],
+    animationClipUrls: [...MIXAMO_FBX_CLIP_URLS, NPC_ANIM_URLS.base],
   },
   objects: [
     {
@@ -76,8 +77,7 @@ export const scene03: SceneDescriptor = {
       rotationY: 0,
       allowBelowSeaLevel: true,
     },
-    // ── Dad (40yo, outdoors) by the dock — no embedded clips; will use animation pack.
-    // Position matches the former npcStub. Scale / rotationY need visual tuning.
+    // ── Dad (40yo, outdoors) by the dock.
     {
       type: 'gltf',
       url: NPC_CHARACTER_URLS.man40yOutdoors,
@@ -85,8 +85,10 @@ export const scene03: SceneDescriptor = {
       y: -0.2,
       z: 4.6,
       scale: 1.89,
-      rotationY: Math.PI * 0.25, // −90° CW from previous 135°
+      rotationY: Math.PI * 0.25,
       allowBelowSeaLevel: true,
+      animationPackUrls: npcAnimPacks(),
+      loopClipIndex: NPC_BASE_ANIM.idle,
     },
   ],
   swimmableVolumes: [

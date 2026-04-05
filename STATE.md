@@ -1,11 +1,11 @@
 # STATE.md — three-dreams
 
 ## SNAPSHOT
-Phase: 4B | Last: 2026-04-03 | Stack: Vue 3 + @base fork (pwa-shell)
-Working: Scenes 01–03, NPC animation pack pipeline, phone profiler menu (3 phone accordion, inventory store)
-Broken: Scenes 04–05 stubs, no win conditions, HUD stub, no audio tracks, phone origins may need Blender fix
+Phase: 4B | Last: 2026-04-05 | Stack: Vue 3 + @base fork (pwa-shell)
+Working: Scenes 01–03, NPC animation packs fully wired (scene-01 extended/wait, scene-03 base/idle), NPC_BASE_ANIM + NPC_EXTENDED_ANIM index maps registered, phone profiler menu
+Broken: Scene-03 player in T-pose (FBX clips do not retarget to boy GLB — needs GLB migration), scenes 04–05 stubs, HUD stub, no audio
 Blocker: Phase 3d (camera) must land before Phase 4C cinematic decisions
-Next: Verify phone GLB origins in Blender (center to geometry); wire animationPackUrls on NPC GltfObjects; verify base pack clip names; add scene-05 bench + elder stubs
+Next: Migrate player character to GLB + fix animation assignment (T-pose); plan + implement dialog system and NPC guidance system
 
 ---
 
@@ -32,7 +32,7 @@ _Last updated: 2026-04-02_
 
 ## Active Work
 
-- Phase 4B in progress — NPC GLB naming harmonized, animation pack pipeline implemented in engine
+- Phase 4B in progress — NPC animation packs wired and clip index maps registered; player GLB migration pending
 
 ## Blockers & Open Questions
 
@@ -46,16 +46,21 @@ _Last updated: 2026-04-02_
 ## Next Session
 
 > **Phase 4B continued:**
-> 1. Inspect `animations_base.glb` clip names (Three.js GLTFLoader or Blender NLA editor) — confirm which clip should be `loopClipNameContains` for idle/look-around on man-40yo.
-> 2. Wire `animationPackUrls: npcAnimPacks()` + `loopClipNameContains` on man-40yo GltfObject in scene-03.
-> 3. Wire man-60yo in scene-01 as secondary NPC (position TBD via visual test) using `NPC_CHARACTER_URLS.man60yCasual`.
-> 4. Add scene-05 bench (`classic_park_bench_1k.glb`) + elder stubs.
-> 5. Decide whether to migrate man-60yo from embedded clips to the shared pack (or keep both paths).
-> 6. Install KTX-Software to upgrade texture compression WebP → KTX2.
+> 1. **Player GLB migration** — replace Remy FBX (scene-01) and confirm boy GLB (scene-03) as the player model; fix T-pose by switching `animationClipUrls` to GLB packs (`NPC_ANIM_URLS.base`) — FBX clips do not retarget to GLB skeletons. Use `debugClipResolution: true` on scene-03 to confirm slot assignments post-fix.
+> 2. **Dialog system** — design and implement NPC interaction trigger + dialog UI (speech bubble or overlay). Pairs with NPC guidance system (contextual hints / scene objectives surfaced through NPC dialogue).
+> 3. **NPC guidance system** — NPCs surface scene context/objectives through dialogue rather than HUD prompts. Design data model for dialog trees keyed to scene + NPC ID.
+> 4. Add scene-05 bench (`classic_park_bench_1k.glb`) + elder NPC stubs.
+> 5. Install KTX-Software to upgrade texture compression WebP → KTX2.
 
 ## Decision Log
 
 <!-- Append-only. One line per decision, newest first. -->
+- **2026-04-05** — `NPC_BASE_ANIM` (8 clips) and `NPC_EXTENDED_ANIM` (14 clips) index maps registered in `npcUrls.ts` — verified by visual inspection via DEV animation cycling overlay. Both packs now have named constants; all NPC placements use `loopClipIndex: NPC_*_ANIM.<name>` instead of magic numbers.
+- **2026-04-05** — Scene-01 NPC (man-60yo) migrated from embedded clips to extended pack (`[NPC_ANIM_URLS.extended]`), default `wait`. Scene-03 NPC (man-40yo) wired to base pack (`npcAnimPacks()`), default `idle`. Both player characters given `NPC_ANIM_URLS.base` in `animationClipUrls` for idle slot coverage.
+- **2026-04-05** — Player T-pose root cause identified: scene-03 uses boy GLB as player model; Mixamo FBX clips do not retarget to GLB skeleton. Fix deferred to next session (player GLB migration track).
+- **2026-04-05** — `SceneBuilder` now exposes `npcGltfEntries: NpcGltfEntry[]` on `SceneBuilderResult` — mixer + retargeted clips per NPC pack object. `GameplaySceneModule.getNpcGltfEntries()` surfaces these for tooling. `loopClipIndex` added to `GltfObject` (SceneDescriptor) to complement `loopClipNameContains`.
+- **2026-04-05** — Movement debug logging (`[PlayerController.move]`) flipped to opt-in: `localStorage.debugPlayerMove='1'` or `?debugMove=1`. Default was on; now off. Reduces console noise during animation debugging.
+- **2026-04-05** — `debugClipResolution` added to `SceneGameplayPolicy` pick so individual scenes can opt in to clip resolution logging without touching the shared module config.
 - **2026-04-03** — Phone profiler menu: `PhoneSelector` accordion replaces Play button. Three phone GLBs (`extreme/pragmatic/comfortable`) compressed (4.83MB → 693KB total). `useInventoryStore` (Pinia, persisted) stores `phoneProfileId` + NPC item slots. Phone selection always enters scene-01 as a fresh run. `PhoneViewer` uses standalone Three.js (no full engine context); centers model via Box3 to compensate for Blender origin offset.
 - **2026-04-03** — NPC model naming convention changed to generic role + variant (e.g. `npc-man-40yo-outdoors.glb`) instead of relationship-based (`npc-father-40yo.glb`). Allows reuse across scenes without implying the player-NPC relationship in the filename. `NPC_CHARACTER_URLS` keys updated to match: `man60yCasual`, `man40yOutdoors`, `boy5yOutdoors`.
 - **2026-04-03** — `GltfObject.animationPackUrls` added to `@base/scene-builder` `SceneDescriptor`. `SceneBuilder.placeGltf` loads packs in parallel, retargets clips to the NPC's SkinnedMesh rig, drives mixer via existing `embeddedGltfMixers` tick. `npcAnimPacks()` helper in `npcUrls.ts` returns `[base]` by default, `[base, extended]` when `{ extended: true }`. Default = base; scene opt-in = extended.
