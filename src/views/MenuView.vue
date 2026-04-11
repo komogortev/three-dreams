@@ -115,6 +115,14 @@ async function continueGame(): Promise<void> {
         Scene editor
       </button>
       <button
+        v-if="isDev"
+        class="w-full px-6 py-3 bg-amber-900 hover:bg-amber-800 active:bg-amber-950 text-amber-200 text-sm font-semibold rounded-xl transition-colors"
+        type="button"
+        @click="router.push('/waypoints')"
+      >
+        Waypoint Editor
+      </button>
+      <button
         class="w-full px-6 py-3 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white text-sm font-semibold rounded-xl transition-colors"
         type="button"
         @click="router.push('/settings')"
