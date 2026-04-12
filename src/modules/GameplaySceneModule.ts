@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { BaseModule } from '@base/engine-core'
 import type { EngineContext } from '@base/engine-core'
 import type { ThreeContext } from '@base/threejs-engine'
-import type { InputActionEvent, InputAxisEvent } from '@base/input'
+import type { InputActionEvent } from '@base/input'
 import {
   GameplayCameraController,
   type GameplayCameraMode,
@@ -23,6 +23,8 @@ import {
   type SceneDescriptor,
   type NpcGltfEntry,
 } from '@base/scene-builder'
+import { PlayerCameraCoordinator, EV_GAMEPLAY_CAMERA_MODE } from '@base/gameplay'
+export { EV_GAMEPLAY_CAMERA_MODE }
 import { MeshTerrainSampler } from '@/utils/MeshTerrainSampler'
 import { createSceneBuildOptions } from '@/utils/sceneBuildOptions'
 import { resolvePublicUrl } from '@/utils/resolvePublicUrl'
@@ -329,7 +331,6 @@ export class GameplaySceneModule extends BaseModule {
   /** Root-to-feet offset in world Y — matches {@link PlayerController} terrain snap. */
   private characterTerrainYOffset = PLAYER_CAPSULE_HALF_HEIGHT
 
-  private offInputAxis: (() => void) | null = null
   private offInputAction: (() => void) | null = null
   private unregisterSystem: (() => void) | null = null
   /** From {@link SceneBuilderResult.disposeEmbeddedGltfAnimations} — GLTF props with embedded clips. */
@@ -340,20 +341,11 @@ export class GameplaySceneModule extends BaseModule {
 
   private animRig: CharacterAnimationRig | null = null
 
-  /** Merged per frame from `input:axis` `locomotion` (keyboard + gamepad may both emit). */
-  private locoSprintOr = false
-  private locoCrouchOr = false
   /** Set from `consumeEvents` `landed` for the next `CharacterAnimationRig.update` only. */
   private pendingLandForRig: { fallDistance: number; airTimeSeconds: number } | null = null
 
-  /** Merged per frame from `input:axis` `look` (pointer lock / gamepad). */
-  private lookYawAcc = 0
-  private lookPitchAcc = 0
-  /** First-person vertical aim (radians), passed to {@link GameplayCameraController}. */
-  private fpPitch = 0
-  private readonly fpPitchLimit = Math.PI / 2 - 0.15
-
   private readonly gameplayCam: GameplayCameraController
+  private readonly coordinator: PlayerCameraCoordinator
   private jumpHeld = false
   private secretWindowOpen = false
   private secretWindowTimer = 0
@@ -442,6 +434,11 @@ export class GameplaySceneModule extends BaseModule {
       extraJumps: 1,
       canUseExtraJump: () => this.canUseSecretExtraJumpNow(),
     })
+    this.coordinator = new PlayerCameraCoordinator(this.player, this.gameplayCam, {
+      facingLerp: this.cfg.facingLerp,
+      facingLerpThirdPerson: this.cfg.facingLerpThirdPerson,
+    })
+
     if (import.meta.env.DEV && playerMovementDebugEnabled()) {
       console.log(
         '[ThirdPersonSceneModule] Player movement debug enabled — hold W to see [PlayerController.move] lines',
@@ -471,33 +468,23 @@ export class GameplaySceneModule extends BaseModule {
     return this.character.position.clone()
   }
 
+  getPlayableRadius(): number {
+    return this.effectiveRadius
+  }
+
   /** DEV: mixer + retargeted clip list for each NPC driven by animationPackUrls. */
   getNpcGltfEntries(): NpcGltfEntry[] {
     return this._npcGltfEntries
   }
 
   setCameraMode(mode: GameplayCameraMode): void {
-    if (mode === 'third-person') {
-      if (typeof document !== 'undefined' && document.exitPointerLock) {
-        document.exitPointerLock()
-      }
-      this.fpPitch = 0
-      this.lookYawAcc = 0
-      this.lookPitchAcc = 0
-      this.player.setMovementBasis('facing')
-    } else {
-      this.player.setMovementBasis('camera')
-    }
-    this.gameplayCam.setMode(mode)
     const ctx = this.context as ThreeContext | undefined
-    if (ctx?.camera && this.character) {
-      this.gameplayCam.snapToCharacter(
-        ctx.camera,
-        this.character,
-        this.player.getFacing(),
-        this.player.getCrouchGroundBlend(),
-      )
-    }
+    this.coordinator.setCameraMode(
+      mode,
+      ctx?.camera ?? null,
+      this.character ?? null,
+      this.context.eventBus,
+    )
   }
 
   // ─── Mount ──────────────────────────────────────────────────────────────────
@@ -607,26 +594,12 @@ export class GameplaySceneModule extends BaseModule {
       debugHazardEdges: playerMovementDebugEnabled(),
     })
 
-    this.initCamera(ctx.camera)
+    this.coordinator.mount(context.eventBus)
+    this.coordinator.initCamera(ctx.camera, this.character)
 
     if (this.gameplayCam.getMode() === 'first-person') {
       this.player.setMovementBasis('camera')
     }
-
-    this.offInputAxis = context.eventBus.on('input:axis', (raw) => {
-      const e = raw as InputAxisEvent
-      if (e.axis === 'move') {
-        this.player.setMoveIntent(e.value.x, e.value.y)
-      }
-      if (e.axis === 'locomotion') {
-        this.locoSprintOr ||= e.value.x > 0.5
-        this.locoCrouchOr ||= e.value.y > 0.5
-      }
-      if (e.axis === 'look') {
-        this.lookYawAcc += e.value.x
-        this.lookPitchAcc += e.value.y
-      }
-    })
 
     this.offInputAction = context.eventBus.on('input:action', (raw) => {
       const e = raw as InputActionEvent
@@ -677,7 +650,7 @@ export class GameplaySceneModule extends BaseModule {
 
   protected async onUnmount(): Promise<void> {
     this.unregisterSystem?.()
-    this.offInputAxis?.()
+    this.coordinator.unmount()
     this.offInputAction?.()
 
     this._offReactionAnim?.()
@@ -889,59 +862,20 @@ export class GameplaySceneModule extends BaseModule {
     return character
   }
 
-  // ─── Camera init ─────────────────────────────────────────────────────────────
-
-  private initCamera(camera: THREE.PerspectiveCamera): void {
-    this.gameplayCam.snapToCharacter(
-      camera,
-      this.character,
-      this.player.getFacing(),
-      this.player.getCrouchGroundBlend(),
-    )
-  }
-
   // ─── Per-frame update ─────────────────────────────────────────────────────────
 
   private tick(delta: number, ctx: ThreeContext): void {
     const simDelta = this.computeSimDelta(delta)
-    const sprintHeld = this.locoSprintOr
-    const crouchHeld = this.locoCrouchOr
-    this.locoSprintOr = false
-    this.locoCrouchOr = false
-
-    this.tickFallRespawn()
-
-    if (this.lookYawAcc !== 0 || this.lookPitchAcc !== 0) {
-      if (this.gameplayCam.getMode() === 'first-person') {
-        this.player.addFacingDelta(this.lookYawAcc)
-        this.fpPitch = THREE.MathUtils.clamp(
-          this.fpPitch + this.lookPitchAcc,
-          -this.fpPitchLimit,
-          this.fpPitchLimit,
-        )
-      } else {
-        // Third-person orbit: cap per-frame yaw to facingLerpThirdPerson rate so camera orbit
-        // feels the same speed as the character naturally turns while walking.
-        const tpRate = this.cfg.facingLerpThirdPerson ?? this.cfg.facingLerp
-        const maxYaw = tpRate * simDelta
-        this.player.addFacingDelta(Math.max(-maxYaw, Math.min(maxYaw, this.lookYawAcc)))
-      }
-      this.lookYawAcc = 0
-      this.lookPitchAcc = 0
-    }
-
-    const isThirdPerson = this.gameplayCam.getMode() === 'third-person'
-    this.player.tick(simDelta, {
+    const tickCtx = {
       camera: ctx.camera,
       character: this.character,
       sampler: this.sampler,
       playableRadius: this.effectiveRadius,
-      facingLerpOverride: isThirdPerson
-        ? (this.cfg.facingLerpThirdPerson ?? this.cfg.facingLerp)
-        : undefined,
-      sprintHeld,
-      crouchHeld,
-    })
+    }
+
+    this.tickFallRespawn()
+    this.coordinator.tickPlayer(simDelta, tickCtx)
+
     const movementEvents = this.player.consumeEvents()
     this.handlePlayerEvents(movementEvents)
 
@@ -970,15 +904,7 @@ export class GameplaySceneModule extends BaseModule {
     this.tickExitZones(simDelta, ctx)
     this.tickNpcProximity(ctx)
 
-    const fpMode = this.gameplayCam.getMode() === 'first-person'
-    this.gameplayCam.update(
-      ctx.camera,
-      simDelta,
-      this.character,
-      this.player.getFacing(),
-      this.player.getCrouchGroundBlend(),
-      fpMode ? this.fpPitch : 0,
-    )
+    this.coordinator.tickCamera(simDelta, tickCtx)
   }
 
   private canUseSecretExtraJumpNow(): boolean {

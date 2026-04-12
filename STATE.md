@@ -1,8 +1,8 @@
 # STATE.md — three-dreams
 
 ## SNAPSHOT
-Phase: 4B | Last: 2026-04-05 | Stack: Vue 3 + @base fork (pwa-shell)
-Working: Scenes 01–03, NPC animation packs fully wired (scene-01 extended/wait, scene-03 base/idle), NPC_BASE_ANIM + NPC_EXTENDED_ANIM index maps registered, phone profiler menu
+Phase: 4B | Last: 2026-04-12 | Stack: Vue 3 + @base fork (pwa-shell)
+Working: Scenes 01–03, NPC animation packs fully wired (scene-01 extended/wait, scene-03 base/idle), NPC_BASE_ANIM + NPC_EXTENDED_ANIM index maps registered, phone profiler menu; **gameplay harmonization Phase 3+4**: `GameplaySceneModule` delegates to `@base/gameplay` `PlayerCameraCoordinator` (tickPlayer/tickCamera split); input settings page (`/settings`) with click-to-rebind keyboard bindings via `useInputSettings` composable + localStorage persistence
 Broken: Scene-03 player in T-pose (FBX clips do not retarget to boy GLB — needs GLB migration), scenes 04–05 stubs, HUD stub, no audio
 Blocker: Phase 3d (camera) must land before Phase 4C cinematic decisions
 Next: Migrate player character to GLB + fix animation assignment (T-pose); plan + implement dialog system and NPC guidance system
