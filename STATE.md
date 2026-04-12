@@ -32,7 +32,12 @@ _Last updated: 2026-04-02_
 
 ## Active Work
 
-- Phase 4B in progress — NPC animation packs wired and clip index maps registered; player GLB migration pending
+**Harmonized plan adopted 2026-04-12.** Three tracks: content (independent), infrastructure (shared quality), cinematic (blocked on harness 3d).
+
+- **Next up (content track):** Player GLB migration — fix T-pose by switching to GLB animation packs
+- **Then:** Dialog system design + NPC guidance system
+- **Foundation track:** GameplaySceneModule refactor (game side), input settings page
+- **Blocked:** Phase 4C cinematic camera (waiting on harness Phase 3d sign-off)
 
 ## Blockers & Open Questions
 
@@ -45,12 +50,15 @@ _Last updated: 2026-04-02_
 
 ## Next Session
 
-> **Phase 4B continued:**
-> 1. **Player GLB migration** — replace Remy FBX (scene-01) and confirm boy GLB (scene-03) as the player model; fix T-pose by switching `animationClipUrls` to GLB packs (`NPC_ANIM_URLS.base`) — FBX clips do not retarget to GLB skeletons. Use `debugClipResolution: true` on scene-03 to confirm slot assignments post-fix.
-> 2. **Dialog system** — design and implement NPC interaction trigger + dialog UI (speech bubble or overlay). Pairs with NPC guidance system (contextual hints / scene objectives surfaced through NPC dialogue).
-> 3. **NPC guidance system** — NPCs surface scene context/objectives through dialogue rather than HUD prompts. Design data model for dialog trees keyed to scene + NPC ID.
-> 4. Add scene-05 bench (`classic_park_bench_1k.glb`) + elder NPC stubs.
-> 5. Install KTX-Software to upgrade texture compression WebP → KTX2.
+> **Note:** Harness critical path (`threejs-engine-dev/PLAN-critical-path.md`) takes priority if working on the harness. The content track below runs independently in three-dreams sessions.
+>
+> **Player GLB migration** (content track target 1):
+> 1. Replace Remy FBX (scene-01) and confirm boy GLB (scene-03) as player model
+> 2. Switch `animationClipUrls` to GLB packs (`NPC_ANIM_URLS.base`) — FBX clips do not retarget to GLB skeletons
+> 3. Use `debugClipResolution: true` on scene-03 to confirm slot assignments post-fix
+> 4. Verify all 3 active scenes still animate correctly
+>
+> If time remains: begin dialog system design (content track target 2) — data model for dialog trees keyed to scene + NPC ID, interaction trigger pattern.
 
 ## Decision Log
 
