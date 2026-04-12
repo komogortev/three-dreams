@@ -17,7 +17,9 @@
 
 ---
 
-## Current State (2026-03-28)
+## Current State (2026-04-11)
+
+**Live detail:** [`../STATE.md`](../STATE.md) **SNAPSHOT** + **Decision log** — read first for orientation.
 
 | Area | Status |
 |---|---|
@@ -30,9 +32,9 @@
 | Save/continue | `PlatformAdapter.storage` + `first-game-save-v1` ✅ |
 | Camera | `@base/camera-three` — third-person follow, first-person, presets ✅ |
 | Sandbox scene | `SandboxSceneModule` — dev calibration, mirrors harness ✅ |
-| Phase 3d | Camera strategy switching in editor — pending (harness blocker) |
-| Game content | Scene descriptors are structural placeholders. No authored content yet. |
-| Game mechanics | Phone, snapshots, NPC, avatar switch, win/lose — not started. |
+| Phase 3d | Camera strategy switching in editor — pending (harness blocker for **4C** cinematic architecture) |
+| Game content | **Scenes 01–03** authored mesh / atmosphere / exits / NPC placements; **04–05** stubs. Asset pipeline (`optimize-glb`, packs) active |
+| Phase / mechanics | **Phase 4B** — NPC `animationPackUrls`, pack index maps, scene-01/scene-03 NPC loops; **phone profiler menu** + persisted phone selection. **Open:** player GLB + clip retarget (scene-03 T-pose), dialog / guidance, snapshots / viewfinder / phone FSM, win/lose |
 
 ---
 
