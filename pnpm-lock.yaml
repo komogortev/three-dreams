@@ -17,6 +17,9 @@ importers:
       '@base/engine-core':
         specifier: link:../SHARED/packages/engine-core
         version: link:../SHARED/packages/engine-core
+      '@base/gameplay':
+        specifier: link:../SHARED/packages/gameplay
+        version: link:../SHARED/packages/gameplay
       '@base/input':
         specifier: link:../SHARED/packages/input
         version: link:../SHARED/packages/input
@@ -29,6 +32,9 @@ importers:
       '@base/threejs-engine':
         specifier: link:../SHARED/packages/threejs-engine
         version: link:../SHARED/packages/threejs-engine
+      '@base/ui':
+        specifier: link:../SHARED/packages/ui
+        version: link:../SHARED/packages/ui
       pinia:
         specifier: ^2.2.0
         version: 2.3.1(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))

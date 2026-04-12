@@ -2,14 +2,15 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ThreeModule } from '@base/threejs-engine'
-import { InputModule } from '@base/input'
+import { DEFAULT_BINDINGS, InputModule, mergeBindings } from '@base/input'
+import { useInputSettings } from '@/composables/useInputSettings'
 import { AudioModule } from '@base/audio'
 import {
   THIRD_PERSON_CAMERA_PRESET_ORDER,
   type GameplayCameraMode,
   type ThirdPersonCameraPreset,
 } from '@base/camera-three'
-import { GameplaySceneModule } from '@/modules/GameplaySceneModule'
+import { EV_GAMEPLAY_CAMERA_MODE, GameplaySceneModule } from '@/modules/GameplaySceneModule'
 import { GameLogicModule } from '@/modules/GameLogicModule'
 import { GAME_EVENTS, type GameSceneChangeRequestPayload } from '@/game/sessionTypes'
 import { getSceneGameplayPolicy } from '@/scenes/gameplayPolicy'
@@ -27,8 +28,15 @@ const shell = useShellStore()
 const gameStore = useGameStore()
 const container = ref<HTMLElement>()
 
+const { loadActive } = useInputSettings()
 const engine = new ThreeModule()
-const inputModule = new InputModule(undefined, { enablePointerLook: true })
+const inputModule = new InputModule(
+  mergeBindings(loadActive(), {
+    keyboard: { toggle_camera: ['Tab'] },
+    gamepad: { toggle_camera: [8] },
+  } as Parameters<typeof mergeBindings>[1]),
+  { enablePointerLook: true },
+)
 const audioModule = new AudioModule()
 
 const initialSceneId = gameStore.pullBootstrapSceneId() ?? 'scene-01'
@@ -67,23 +75,16 @@ function cycleCamera(delta: number): void {
   cameraPresetLabel.value = p
 }
 
-function toggleCameraMode(): void {
-  const next: GameplayCameraMode =
-    sceneModule.getCameraMode() === 'third-person' ? 'first-person' : 'third-person'
-  sceneModule.setCameraMode(next)
-  cameraModeLabel.value = next
-  if (next === 'third-person') {
+function onGameplayCameraMode(raw: unknown): void {
+  const { mode } = raw as { mode: GameplayCameraMode }
+  cameraModeLabel.value = mode
+  if (mode === 'third-person') {
     presetIndex = Math.max(0, THIRD_PERSON_CAMERA_PRESET_ORDER.indexOf(sceneModule.getCameraPreset()))
     cameraPresetLabel.value = sceneModule.getCameraPreset()
   }
 }
 
 function onWindowKeyDown(e: KeyboardEvent): void {
-  if (e.code === 'Tab') {
-    e.preventDefault()
-    toggleCameraMode()
-    return
-  }
   if (e.code === 'BracketRight') {
     e.preventDefault()
     cycleCamera(1)
@@ -100,7 +101,7 @@ const worldReady = ref(false)
 const playerPos = ref('')
 let posTimer: ReturnType<typeof setInterval> | undefined
 let offSceneChange: (() => void) | undefined
-
+let offCamMode: (() => void) | null = null
 
 onMounted(async () => {
   if (!container.value) return
@@ -145,6 +146,8 @@ onMounted(async () => {
     showHint.value = false
   }, 4000)
 
+  offCamMode = context.eventBus.on(EV_GAMEPLAY_CAMERA_MODE, onGameplayCameraMode)
+
   window.addEventListener('keydown', onWindowKeyDown)
 
   // Scene exit zone trigger — stage target scene, navigate to menu, then back to game.
@@ -167,6 +170,8 @@ onMounted(async () => {
 })
 
 onUnmounted(async () => {
+  offCamMode?.()
+  offCamMode = null
   window.removeEventListener('keydown', onWindowKeyDown)
   clearTimeout(hintTimer)
   clearInterval(posTimer)

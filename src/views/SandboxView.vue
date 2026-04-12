@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ThreeModule } from '@base/threejs-engine'
 import { InputModule } from '@base/input'
+import { useInputSettings } from '@/composables/useInputSettings'
 import { SandboxSceneModule } from '@/modules/SandboxSceneModule'
 import { sandboxScene } from '@/scenes/sandbox'
 import { useShellContext } from '@/composables/useShellContext'
@@ -12,7 +13,8 @@ const context = useShellContext()
 const container = ref<HTMLElement>()
 
 const engine      = new ThreeModule()
-const inputModule = new InputModule(undefined, { enablePointerLook: true })
+const { loadActive } = useInputSettings()
+const inputModule = new InputModule(loadActive(), { enablePointerLook: true })
 const sceneModule = new SandboxSceneModule({
   descriptor: sandboxScene,
   cameraPreset: 'close-follow',
