@@ -19,7 +19,52 @@ A complete, shippable first game loop: a player explores a Three.js world throug
 
 ## Current Milestone
 
-**Phase 4 bootstrap** — Wire the full engine stack into the game fork, establish scene registry + transition system, and validate that `threejs-engine-dev` harness work transfers cleanly into the game context.
+**Phase 4B/4C — Narrative, Exploration & Cinematic Camera**
+
+Content track active. Phase 4C (cinematic camera) is now unblocked — harness Phase 3d signed off 2026-04-12. Camera architecture reviewed; cinematic mode is purely additive. See `SHARED/packages/camera-three/ARCHITECTURE.md`.
+
+## Harmonized Plan (2026-04-12)
+
+Work is organized in three tracks. Content track runs independently; infrastructure track improves shared quality; cinematic track opens when the harness gate closes.
+
+### Content Track (independent, active now)
+
+| # | Target | Est. | Status |
+|---|--------|------|--------|
+| 1 | Player GLB migration — fix T-pose, switch FBX→GLB animation pipeline | 1 session | Pending |
+| 2 | Dialog system design + implementation — NPC interaction trigger + dialog UI | 1-2 sessions | Pending |
+| 3 | NPC guidance system — contextual hints via dialogue, not HUD | 1 session | Pending |
+| 4 | Reaction engine features — interact-key stimulus, cooldowns, branching dialog | 1-2 sessions | Pending |
+| 5 | Scene-01 narrative flow — beginning → middle → end, env reactions | Ongoing | Pending |
+| 6 | Sound effects for reactions | 1 session | Pending |
+| 7 | Scene-05 bench + elder NPC stubs | 1 session | Pending |
+
+### Infrastructure Track (parallel with harness, not blocking)
+
+| # | Target | Est. | Status |
+|---|--------|------|--------|
+| 8 | GameplaySceneModule refactor (game side) — clean up legacy overrides | 1 session | Pending |
+| 9 | Input settings page (shared component from harness) | 1 session | Pending |
+| 10 | KTX2 texture compression (needs ktx binary install) | Setup task | Deferred |
+
+### Cinematic Track (blocked on harness Phase 3d)
+
+| # | Target | Status |
+|---|--------|--------|
+| 11 | Phase 4C — Cinematic camera transitions | **Unblocked** |
+| 12 | Camera rail system for scripted sequences | **Unblocked** |
+| 13 | Smooth blend between camera modes | **Unblocked** |
+
+### Scene-02 (asset-blocked)
+
+| # | Target | Status |
+|---|--------|--------|
+| 14 | Scene-02 cliff GLB (replace procedural heightmap) | Waiting on asset |
+| 15 | Scene-02 gameplay polish | Waiting on 14 |
+
+### Sequencing Principle
+
+Steady progress building a solid foundation. Content work and infrastructure quality improvements run in parallel. No rushing toward ship — the game ships when every layer is right.
 
 ## V1 Scope
 
@@ -28,14 +73,15 @@ A complete, shippable first game loop: a player explores a Three.js world throug
 - `GameLogicModule` — game rules, session state machine, scene transitions
 - Scene registry + session transition system (`sessionTypes.ts`, `sessionTransitions.ts`)
 - `GameplayPolicy` — which scenes are accessible and in what order
-- Multiple scenes: sandbox, scene-01, scene-02 (at minimum)
+- 5 scenes: sandbox, scene-01 through scene-05 (04 structural placeholder)
 - Pinia `useGameStore` — player state, current scene, save data skeleton
-- Shell UI: main menu, HUD placeholder, pause menu
-- Swimming crossing in scene water volumes (inherits from engine harness work)
+- Shell UI: main menu, phone profiler, HUD placeholder, pause menu
+- Dialog system + NPC guidance through dialogue
+- Reaction engine (stimulus-response) for NPC interactions + env reactions
 
 **Out of scope for v1:**
 - Steam / Electron packaging (Phase 5–6)
-- Multiplayer, NPCs with AI
+- Multiplayer, NPCs with AI dialogue
 - Save/load persistence (placeholder architecture only)
 - Full audio soundscape (deferred — game scene content not locked yet)
 - Camera mode switching as player feature (adopt Phase 3d patterns when ready)
