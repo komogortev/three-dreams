@@ -42,6 +42,15 @@ export const router = createRouter({
       component: () => import('@/views/SettingsView.vue'),
     },
     {
+      path: '/scene-editor',
+      name: 'scene-editor',
+      component: () => import('@/views/SceneEditorPage.vue'),
+      beforeEnter: (_to, _from, next) => {
+        if (import.meta.env.DEV) next()
+        else next({ path: '/' })
+      },
+    },
+    {
       path: '/waypoints',
       name: 'waypoints',
       component: () => import('@/views/WaypointEditorPage.vue'),
