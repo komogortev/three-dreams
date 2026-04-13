@@ -1,5 +1,4 @@
 import type { SceneDescriptor } from '@base/scene-builder'
-import { MIXAMO_FBX_CLIP_URLS } from '@base/player-three'
 import { realWorldWarm } from '@/scenes/atmosphereProfiles'
 import type { SceneGameplayPolicy } from '@/scenes/types'
 import { NPC_CHARACTER_URLS, NPC_ANIM_URLS, npcAnimPacks, NPC_BASE_ANIM } from '@/characters/npcUrls'
@@ -65,7 +64,13 @@ export const scene03: SceneDescriptor = {
     pruneExtraSkinnedMeshes: false,
     terrainFootprintRadius: 0.14,
     rotationY: Math.PI / 2, // 90°
-    animationClipUrls: [...MIXAMO_FBX_CLIP_URLS, NPC_ANIM_URLS.base],
+    // GLB character — use shared GLB animation pack, not Mixamo FBX sidecar clips.
+    // FBX clips do not retarget to the boy GLB skeleton; the GLB pack does.
+    animationClipUrls: [NPC_ANIM_URLS.base],
+    // animations_base.glb exports Blender NLA default names ("NlaTrack", "NlaTrack.001" …).
+    // Regex patterns in locomotionClipAssignments.ts match Mixamo names only — index overrides
+    // are required. Indices verified via NPC animation cycling overlay (2026-04-05).
+    locomotionClipIndices: { idleStand: NPC_BASE_ANIM.idle, walkFwdStand: NPC_BASE_ANIM.walk, runFwdStand: NPC_BASE_ANIM.run },
   },
   objects: [
     {

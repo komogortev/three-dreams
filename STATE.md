@@ -1,11 +1,11 @@
 # STATE.md — three-dreams
 
 ## SNAPSHOT
-Phase: 4B | Last: 2026-04-12 | Stack: Vue 3 + @base fork (pwa-shell)
+Phase: 4B/4C | Last: 2026-04-12 | Stack: Vue 3 + @base fork (pwa-shell)
 Working: Scenes 01–03, NPC animation packs fully wired (scene-01 extended/wait, scene-03 base/idle), NPC_BASE_ANIM + NPC_EXTENDED_ANIM index maps registered, phone profiler menu; **gameplay harmonization Phase 3+4**: `GameplaySceneModule` delegates to `@base/gameplay` `PlayerCameraCoordinator` (tickPlayer/tickCamera split); input settings page (`/settings`) with click-to-rebind keyboard bindings via `useInputSettings` composable + localStorage persistence
-Broken: Scene-03 player in T-pose (FBX clips do not retarget to boy GLB — needs GLB migration), scenes 04–05 stubs, HUD stub, no audio
-Blocker: Phase 3d (camera) must land before Phase 4C cinematic decisions
-Next: Migrate player character to GLB + fix animation assignment (T-pose); plan + implement dialog system and NPC guidance system
+Broken: Scenes 04–05 stubs, HUD stub, no audio
+Blocker: none — harness Phase 3d signed off 2026-04-12; Phase 4C unblocked
+Next: Verify scene-03 player animations in browser (debugClipResolution: true active); then dialog system OR Phase 4C cinematic camera
 
 ---
 
@@ -34,17 +34,16 @@ _Last updated: 2026-04-02_
 
 **Harmonized plan adopted 2026-04-12.** Three tracks: content (independent), infrastructure (shared quality), cinematic (blocked on harness 3d).
 
-- **Next up (content track):** Player GLB migration — fix T-pose by switching to GLB animation packs
-- **Then:** Dialog system design + NPC guidance system
+- **Content track:** ~~Player GLB migration~~ done (2026-04-12) → dialog system → NPC guidance
+- **Cinematic track (unblocked):** Phase 4C — `CinematicCameraRig` + `CameraTransitionManager` + `PlayerCameraCoordinator.suspend/resume`; additive, no existing API changes
 - **Foundation track:** GameplaySceneModule refactor (game side), input settings page
-- **Blocked:** Phase 4C cinematic camera (waiting on harness Phase 3d sign-off)
 
 ## Blockers & Open Questions
 
 - ~~**[2026-03-28]** Scene numbering mismatch~~ — **resolved 2026-03-28**. Code now matches game design order.
 - **[2026-04-02]** ~~`npc_old_man.glb` scene-01 legacy path~~ — resolved. Moved + optimized to `public/characters/npc/npc-old-man.glb`, added to `NPC_CHARACTER_URLS.oldMan`. Wiring in scene-01 still pending.
 - **[2026-03-28]** NPC models: 4 models in `public/characters/npc/`, all optimized. Still missing: elders ×2–3 for scene-05.
-- **[2026-03-28]** `threejs-engine-dev` Phase 3d (camera strategy switching) must land before cinematic camera decisions are locked in Phase 4C.
+- ~~**[2026-03-28]** `threejs-engine-dev` Phase 3d (camera strategy switching) must land before cinematic camera decisions are locked in Phase 4C.~~ **Resolved 2026-04-12.**
 - **[2026-03-28]** Scene 4 (Roksana) requires dedicated polishing pass before it can be built. Structural placeholder contracts are stable.
 - **[2026-03-28]** Multiple TBD items in scene specs — Win B trigger, recognition reward, dad visual design. Resolve during each scene's authoring pass.
 
@@ -65,7 +64,8 @@ _Last updated: 2026-04-02_
 <!-- Append-only. One line per decision, newest first. -->
 - **2026-04-05** — `NPC_BASE_ANIM` (8 clips) and `NPC_EXTENDED_ANIM` (14 clips) index maps registered in `npcUrls.ts` — verified by visual inspection via DEV animation cycling overlay. Both packs now have named constants; all NPC placements use `loopClipIndex: NPC_*_ANIM.<name>` instead of magic numbers.
 - **2026-04-05** — Scene-01 NPC (man-60yo) migrated from embedded clips to extended pack (`[NPC_ANIM_URLS.extended]`), default `wait`. Scene-03 NPC (man-40yo) wired to base pack (`npcAnimPacks()`), default `idle`. Both player characters given `NPC_ANIM_URLS.base` in `animationClipUrls` for idle slot coverage.
-- **2026-04-05** — Player T-pose root cause identified: scene-03 uses boy GLB as player model; Mixamo FBX clips do not retarget to GLB skeleton. Fix deferred to next session (player GLB migration track).
+- **2026-04-12** — **Player GLB migration complete.** Scene-03 player T-pose fixed: `animationClipUrls` switched from `[...MIXAMO_FBX_CLIP_URLS, NPC_ANIM_URLS.base]` to `[NPC_ANIM_URLS.base]` only. FBX clips don't retarget to GLB skeletons; GLB pack does. `debugClipResolution: true` active on scene-03 gameplay policy for browser verification.
+- **2026-04-05** — ~~Player T-pose root cause identified: scene-03 uses boy GLB as player model; Mixamo FBX clips do not retarget to GLB skeleton. Fix deferred to next session (player GLB migration track).~~ **Fixed 2026-04-12.**
 - **2026-04-05** — `SceneBuilder` now exposes `npcGltfEntries: NpcGltfEntry[]` on `SceneBuilderResult` — mixer + retargeted clips per NPC pack object. `GameplaySceneModule.getNpcGltfEntries()` surfaces these for tooling. `loopClipIndex` added to `GltfObject` (SceneDescriptor) to complement `loopClipNameContains`.
 - **2026-04-05** — Movement debug logging (`[PlayerController.move]`) flipped to opt-in: `localStorage.debugPlayerMove='1'` or `?debugMove=1`. Default was on; now off. Reduces console noise during animation debugging.
 - **2026-04-05** — `debugClipResolution` added to `SceneGameplayPolicy` pick so individual scenes can opt in to clip resolution logging without touching the shared module config.
