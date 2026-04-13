@@ -1,11 +1,11 @@
 # STATE.md — three-dreams
 
 ## SNAPSHOT
-Phase: 4B/4C | Last: 2026-04-12 | Stack: Vue 3 + @base fork (pwa-shell)
-Working: Scenes 01–03, NPC animation packs fully wired (scene-01 extended/wait, scene-03 base/idle), NPC_BASE_ANIM + NPC_EXTENDED_ANIM index maps registered, phone profiler menu; **gameplay harmonization Phase 3+4**: `GameplaySceneModule` delegates to `@base/gameplay` `PlayerCameraCoordinator` (tickPlayer/tickCamera split); input settings page (`/settings`) with click-to-rebind keyboard bindings via `useInputSettings` composable + localStorage persistence
+Phase: 4B/4C | Last: 2026-04-13 | Stack: Vue 3 + @base fork (pwa-shell)
+Working: Scenes 01–03, NPC animation packs fully wired (scene-01 extended/wait, scene-03 base/idle), NPC_BASE_ANIM + NPC_EXTENDED_ANIM index maps registered, phone profiler menu; reaction engine wired (proximity → dialog on scene-01 dad NPC); waypoint editor wired from @base/ui (dev-only route) + navPath.ts road waypoints stub; GLB optimization pipeline (optimize-glb.sh); **gameplay harmonization Phase 3+4**: `GameplaySceneModule` delegates to `@base/gameplay` `PlayerCameraCoordinator` (tickPlayer/tickCamera split); input settings page (`/settings`) with click-to-rebind keyboard bindings, 4-ability slots, mouse button rebinding
 Broken: Scenes 04–05 stubs, HUD stub, no audio
 Blocker: none — harness Phase 3d signed off 2026-04-12; Phase 4C unblocked
-Next: Verify scene-03 player animations in browser (debugClipResolution: true active); then dialog system OR Phase 4C cinematic camera
+Next: Dialog content authoring (T-G8) — dialog trees, branching, NPC conversation content
 
 ---
 
@@ -32,11 +32,11 @@ _Last updated: 2026-04-02_
 
 ## Active Work
 
-**Harmonized plan adopted 2026-04-12.** Three tracks: content (independent), infrastructure (shared quality), cinematic (blocked on harness 3d).
+**Harmonized plan adopted 2026-04-12.** Three tracks: content (independent), infrastructure (shared quality), cinematic (unblocked).
 
-- **Content track:** ~~Player GLB migration~~ done (2026-04-12) → dialog system → NPC guidance
+- **Content track:** ~~Player GLB migration~~ done → ~~GLB pipeline~~ done → ~~NPC anim packs~~ done → ~~Reaction engine~~ done → ~~Dialog panel~~ done → ~~Scene-01 wiring~~ done → ~~Waypoint editor~~ done → **Dialog content authoring (T-G8)** next → NPC guidance → env reactions
 - **Cinematic track (unblocked):** Phase 4C — `CinematicCameraRig` + `CameraTransitionManager` + `PlayerCameraCoordinator.suspend/resume`; additive, no existing API changes
-- **Foundation track:** GameplaySceneModule refactor (game side), input settings page
+- **Infrastructure track:** ~~Gameplay harmonization~~ done → ~~Input settings page~~ done → GameplaySceneModule refactor (game side) remaining
 
 ## Blockers & Open Questions
 
@@ -49,15 +49,13 @@ _Last updated: 2026-04-02_
 
 ## Next Session
 
-> **Note:** Harness critical path (`threejs-engine-dev/PLAN-critical-path.md`) takes priority if working on the harness. The content track below runs independently in three-dreams sessions.
+> **Dialog content authoring (T-G8):**
+> 1. Design dialog tree data model — keyed by scene + NPC ID, supports branching
+> 2. Author scene-01 dad NPC conversation content (approach → greeting → dialog branches)
+> 3. Wire dialog trees into reaction engine dispatch
+> 4. Verify dialog flow in browser (approach dad → proximity trigger → dialog panel → branches)
 >
-> **Player GLB migration** (content track target 1):
-> 1. Replace Remy FBX (scene-01) and confirm boy GLB (scene-03) as player model
-> 2. Switch `animationClipUrls` to GLB packs (`NPC_ANIM_URLS.base`) — FBX clips do not retarget to GLB skeletons
-> 3. Use `debugClipResolution: true` on scene-03 to confirm slot assignments post-fix
-> 4. Verify all 3 active scenes still animate correctly
->
-> If time remains: begin dialog system design (content track target 2) — data model for dialog trees keyed to scene + NPC ID, interaction trigger pattern.
+> If time remains: begin NPC guidance (T-G9) — look-at player during dialog, gesture animations from extended pack.
 
 ## Decision Log
 
