@@ -1,11 +1,11 @@
 # STATE.md — three-dreams
 
 ## SNAPSHOT
-Phase: 4B/4C | Last: 2026-04-12 | Stack: Vue 3 + @base fork (pwa-shell)
-Working: Scenes 01–03, NPC animation packs fully wired (scene-01 extended/wait, scene-03 base/idle), NPC_BASE_ANIM + NPC_EXTENDED_ANIM index maps registered, phone profiler menu; **gameplay harmonization Phase 3+4**: `GameplaySceneModule` delegates to `@base/gameplay` `PlayerCameraCoordinator` (tickPlayer/tickCamera split); input settings page (`/settings`) with click-to-rebind keyboard bindings via `useInputSettings` composable + localStorage persistence
+Phase: 4B/4C | Last: 2026-04-14 | Stack: Vue 3 + @base fork (pwa-shell)
+Working: Scenes 01–03, NPC animation packs fully wired (scene-01 extended/wait, scene-03 base/idle), NPC_BASE_ANIM + NPC_EXTENDED_ANIM index maps registered, phone profiler menu; reaction engine wired (proximity → dialog on scene-01 dad NPC); waypoint editor wired from @base/ui (dev-only route) + navPath.ts road waypoints stub; GLB optimization pipeline (optimize-glb.sh); **gameplay harmonization Phase 3+4**: `GameplaySceneModule` delegates to `@base/gameplay` `PlayerCameraCoordinator` (tickPlayer/tickCamera split); input settings page (`/settings`) with click-to-rebind keyboard bindings, 4-ability slots, mouse button rebinding; **T-G8 dialog authoring**: speaker registry (`speakers.ts`), `InteractPrompt.vue` HUD, `DialogPanel` uses display names + color, authored scene-01 dad NPC dialog content
 Broken: Scenes 04–05 stubs, HUD stub, no audio
 Blocker: none — harness Phase 3d signed off 2026-04-12; Phase 4C unblocked
-Next: Verify scene-03 player animations in browser (debugClipResolution: true active); then dialog system OR Phase 4C cinematic camera
+Next: NPC guidance (T-G9) — look-at player during dialog, gesture animations from extended pack
 
 ---
 
@@ -32,11 +32,11 @@ _Last updated: 2026-04-02_
 
 ## Active Work
 
-**Harmonized plan adopted 2026-04-12.** Three tracks: content (independent), infrastructure (shared quality), cinematic (blocked on harness 3d).
+**Harmonized plan adopted 2026-04-12.** Three tracks: content (independent), infrastructure (shared quality), cinematic (unblocked).
 
-- **Content track:** ~~Player GLB migration~~ done (2026-04-12) → dialog system → NPC guidance
+- **Content track:** ~~Player GLB migration~~ done → ~~GLB pipeline~~ done → ~~NPC anim packs~~ done → ~~Reaction engine~~ done → ~~Dialog panel~~ done → ~~Scene-01 wiring~~ done → ~~Waypoint editor~~ done → ~~Dialog content authoring (T-G8)~~ done → **NPC guidance (T-G9)** next → env reactions
 - **Cinematic track (unblocked):** Phase 4C — `CinematicCameraRig` + `CameraTransitionManager` + `PlayerCameraCoordinator.suspend/resume`; additive, no existing API changes
-- **Foundation track:** GameplaySceneModule refactor (game side), input settings page
+- **Infrastructure track:** ~~Gameplay harmonization~~ done → ~~Input settings page~~ done → GameplaySceneModule refactor (game side) remaining
 
 ## Blockers & Open Questions
 
@@ -49,19 +49,15 @@ _Last updated: 2026-04-02_
 
 ## Next Session
 
-> **Note:** Harness critical path (`threejs-engine-dev/PLAN-critical-path.md`) takes priority if working on the harness. The content track below runs independently in three-dreams sessions.
->
-> **Player GLB migration** (content track target 1):
-> 1. Replace Remy FBX (scene-01) and confirm boy GLB (scene-03) as player model
-> 2. Switch `animationClipUrls` to GLB packs (`NPC_ANIM_URLS.base`) — FBX clips do not retarget to GLB skeletons
-> 3. Use `debugClipResolution: true` on scene-03 to confirm slot assignments post-fix
-> 4. Verify all 3 active scenes still animate correctly
->
-> If time remains: begin dialog system design (content track target 2) — data model for dialog trees keyed to scene + NPC ID, interaction trigger pattern.
+> **NPC guidance (T-G9):**
+> 1. Look-at player during dialog — NPC faces player when dialog starts
+> 2. Gesture animations from extended pack — tied to dialog lines via `animationClip` field
+> 3. Idle return after dialog ends
 
 ## Decision Log
 
 <!-- Append-only. One line per decision, newest first. -->
+- **2026-04-14** — **T-G8 Dialog content authoring complete.** Speaker registry (`src/characters/speakers.ts`) maps entityIds to display names + UI colors. `DialogPanel.vue` uses `SPEAKERS` lookup instead of regex-munged entityId. `InteractPrompt.vue` shows "E / Talk" on proximity_enter, hides on proximity_exit and during active dialog. Scene-01 dad NPC dialog authored: proximity greeting ("Ah." / "There you are."), first interact ("Come." / "I want to show you something." / "Up the hill. You'll see."), repeat interact ("The path is this way."). Tone: cold, understated, per GDD's distant dad characterization. No structural changes to reaction engine or shared packages — content-only target.
 - **2026-04-05** — `NPC_BASE_ANIM` (8 clips) and `NPC_EXTENDED_ANIM` (14 clips) index maps registered in `npcUrls.ts` — verified by visual inspection via DEV animation cycling overlay. Both packs now have named constants; all NPC placements use `loopClipIndex: NPC_*_ANIM.<name>` instead of magic numbers.
 - **2026-04-05** — Scene-01 NPC (man-60yo) migrated from embedded clips to extended pack (`[NPC_ANIM_URLS.extended]`), default `wait`. Scene-03 NPC (man-40yo) wired to base pack (`npcAnimPacks()`), default `idle`. Both player characters given `NPC_ANIM_URLS.base` in `animationClipUrls` for idle slot coverage.
 - **2026-04-12** — **Player GLB migration complete.** Scene-03 player T-pose fixed: `animationClipUrls` switched from `[...MIXAMO_FBX_CLIP_URLS, NPC_ANIM_URLS.base]` to `[NPC_ANIM_URLS.base]` only. FBX clips don't retarget to GLB skeletons; GLB pack does. `debugClipResolution: true` active on scene-03 gameplay policy for browser verification.

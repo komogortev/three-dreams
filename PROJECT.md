@@ -31,36 +31,43 @@ Work is organized in three tracks. Content track runs independently; infrastruct
 
 | # | Target | Est. | Status |
 |---|--------|------|--------|
-| 1 | Player GLB migration — fix T-pose, switch FBX→GLB animation pipeline | 1 session | Pending |
-| 2 | Dialog system design + implementation — NPC interaction trigger + dialog UI | 1-2 sessions | Pending |
-| 3 | NPC guidance system — contextual hints via dialogue, not HUD | 1 session | Pending |
-| 4 | Reaction engine features — interact-key stimulus, cooldowns, branching dialog | 1-2 sessions | Pending |
-| 5 | Scene-01 narrative flow — beginning → middle → end, env reactions | Ongoing | Pending |
-| 6 | Sound effects for reactions | 1 session | Pending |
-| 7 | Scene-05 bench + elder NPC stubs | 1 session | Pending |
+| 1 | Player GLB migration — fix T-pose, switch FBX→GLB animation pipeline | 1 session | **Done** (2026-04-12) |
+| 2 | GLB optimization pipeline — gltf-transform, meshopt+WebP, optimize-glb.sh | 1 session | **Done** (2026-04-02) |
+| 3 | NPC animation packs — base+extended GLB packs, clip index maps, pack wiring | 1-2 sessions | **Done** (2026-04-05) |
+| 4 | Reaction engine — stimulus/condition/reaction dispatch + proximity triggers | 1 session | **Done** (2026-04-05) |
+| 5 | Dialog panel UI — DialogPanel.vue, REACTION_EVENTS.DIALOG_START/END | 1 session | **Done** (2026-04-05) |
+| 6 | Scene-01 approach-to-dialog wiring — npcEntries + proximity → dialog flow | 1 session | **Done** (2026-04-05) |
+| 7 | NPC waypoint editor + nav path stubs — WaypointEditor from @base/ui, navPath.ts | 1 session | **Done** (2026-04-10) |
+| 8 | **Dialog content authoring** — dialog trees, branching, NPC conversation content | 1-2 sessions | **Next** |
+| 9 | NPC guidance system — look-at, gesture, contextual hints via dialogue | 1 session | Pending |
+| 10 | Environmental reactions — interact-key stimulus, cooldowns, env triggers | 1-2 sessions | Pending |
+| 11 | Scene-01 narrative flow — beginning → middle → end | Ongoing | Pending |
+| 12 | Sound effects for reactions | 1 session | Pending |
+| 13 | Scene-05 bench + elder NPC stubs | 1 session | Pending |
 
 ### Infrastructure Track (parallel with harness, not blocking)
 
 | # | Target | Est. | Status |
 |---|--------|------|--------|
-| 8 | GameplaySceneModule refactor (game side) — clean up legacy overrides | 1 session | Pending |
-| 9 | Input settings page (shared component from harness) | 1 session | Pending |
-| 10 | KTX2 texture compression (needs ktx binary install) | Setup task | Deferred |
+| 14 | Gameplay harmonization — PlayerCameraCoordinator delegation, tickPlayer/tickCamera | 1 session | **Done** (2026-04-12) |
+| 15 | Input settings page — click-to-rebind, 4-ability slots, mouse button rebinding | 1 session | **Done** (2026-04-12) |
+| 16 | GameplaySceneModule refactor (game side) — clean up legacy overrides | 1 session | Pending |
+| 17 | KTX2 texture compression (needs ktx binary install) | Setup task | Deferred |
 
-### Cinematic Track (blocked on harness Phase 3d)
+### Cinematic Track (unblocked — harness Phase 3d signed off 2026-04-12)
 
 | # | Target | Status |
 |---|--------|--------|
-| 11 | Phase 4C — Cinematic camera transitions | **Unblocked** |
-| 12 | Camera rail system for scripted sequences | **Unblocked** |
-| 13 | Smooth blend between camera modes | **Unblocked** |
+| 18 | Phase 4C — Cinematic camera rig (CinematicCameraRig) | Ready |
+| 19 | Camera transitions (CameraTransitionManager + suspend/resume) | Ready |
+| 20 | Camera rail system for scripted sequences | Ready |
 
 ### Scene-02 (asset-blocked)
 
 | # | Target | Status |
 |---|--------|--------|
-| 14 | Scene-02 cliff GLB (replace procedural heightmap) | Waiting on asset |
-| 15 | Scene-02 gameplay polish | Waiting on 14 |
+| 21 | Scene-02 cliff GLB (replace procedural heightmap) | Waiting on asset |
+| 22 | Scene-02 gameplay polish | Waiting on 21 |
 
 ### Sequencing Principle
 
