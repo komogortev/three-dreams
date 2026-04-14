@@ -35,8 +35,8 @@ export const dadScene01Reactions: Array<{ stimulus: StimulusType; entry: Reactio
               kind: 'dialog',
               speakerId: DAD_SCENE_01_ID,
               lines: [
-                { text: 'You came back.' },
-                { text: 'I knew you would.' },
+                { text: 'Ah.' },
+                { text: 'There you are.' },
               ],
             },
           },
@@ -99,8 +99,9 @@ export const dadScene01Reactions: Array<{ stimulus: StimulusType; entry: Reactio
               kind: 'dialog',
               speakerId: DAD_SCENE_01_ID,
               lines: [
-                { text: 'The light up there.' },
-                { text: 'Follow it.' },
+                { text: 'Come.' },
+                { text: 'I want to show you something.' },
+                { text: 'Up the hill. You\'ll see.' },
               ],
             },
           },
@@ -125,7 +126,7 @@ export const dadScene01Reactions: Array<{ stimulus: StimulusType; entry: Reactio
       reaction: {
         kind: 'dialog',
         speakerId: DAD_SCENE_01_ID,
-        lines: [{ text: 'Go.' }],
+        lines: [{ text: 'The path is this way.' }],
       },
     },
   },

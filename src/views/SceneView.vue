@@ -21,6 +21,7 @@ import { useGameStore } from '@/stores/game'
 import { ReactionEngine } from '@/reaction'
 import { dadScene01Reactions, DAD_SCENE_01_ID } from '@/scenes/scene-01/reactions'
 import DialogPanel from '@/components/DialogPanel.vue'
+import InteractPrompt from '@/components/InteractPrompt.vue'
 
 const router = useRouter()
 const context = useShellContext()
@@ -212,6 +213,7 @@ async function goToMenu(): Promise<void> {
     </div>
 
     <DialogPanel />
+    <InteractPrompt />
 
     <div class="absolute top-4 left-4 z-40">
       <button

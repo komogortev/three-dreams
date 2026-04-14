@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useShellContext } from '@/composables/useShellContext'
 import {
   REACTION_EVENTS,
@@ -7,6 +7,7 @@ import {
   type DialogLine,
 } from '@/reaction'
 import type { InputActionEvent } from '@base/input'
+import { SPEAKERS } from '@/characters/speakers'
 
 const context = useShellContext()
 
@@ -18,6 +19,10 @@ const canAdvance = ref(false)   // false while auto-advance timer is running
 let pendingLines: DialogLine[] = []
 let lineIndex = 0
 let autoTimer: ReturnType<typeof setTimeout> | undefined
+
+const speakerMeta = computed(() => SPEAKERS[speakerId.value])
+const speakerLabel = computed(() => speakerMeta.value?.displayName ?? speakerId.value)
+const speakerColor = computed(() => speakerMeta.value?.color)
 
 // ─── Line progression ────────────────────────────────────────────────────────
 
@@ -107,9 +112,10 @@ onUnmounted(() => {
         <!-- Speaker label -->
         <p
           v-if="speakerId && speakerId !== 'player'"
-          class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/40"
+          class="mb-1 text-[10px] font-semibold uppercase tracking-widest"
+          :style="{ color: speakerColor ?? 'rgb(255 255 255 / 0.4)' }"
         >
-          {{ speakerId.replace(/^npc-/, '').replace(/-/g, ' ') }}
+          {{ speakerLabel }}
         </p>
 
         <!-- Dialog text -->
