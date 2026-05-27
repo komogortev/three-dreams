@@ -78,6 +78,8 @@ export default defineConfig(({ mode }) => {
          * would pre-bundle the dist/ output where `import.meta.url` resolves incorrectly.
          */
         '@base/player-three': resolve(sharedRoot, 'packages/player-three/src/index.ts'),
+        /** @base/input from source so dev is not stuck on stale `dist/` (ability actions). */
+        '@base/input': resolve(sharedRoot, 'packages/input/src/index.ts'),
         /**
          * @base/ui ships Vue SFCs — resolve from source so Vite processes them
          * with @vitejs/plugin-vue instead of loading a pre-built dist.
@@ -97,7 +99,7 @@ export default defineConfig(({ mode }) => {
        * `import.meta.glob` in mixamoFbxClipUrls.ts relative to the source file location.
        * Pre-bundling via esbuild would strip the glob and produce stale chunk-relative URLs.
        */
-      exclude: ['@base/player-three', '@base/ui'],
+      exclude: ['@base/player-three', '@base/ui', '@base/input'],
     },
   }
 })
