@@ -43,7 +43,12 @@ fi
 
 echo "Optimizing: $INPUT → $OUTPUT"
 
-npx @gltf-transform/cli optimize "$INPUT" "$OUTPUT" \
+TEMP=$(mktemp /tmp/tmp.XXXXXX.glb)
+trap 'rm -f "$TEMP"' EXIT
+
+npx @gltf-transform/cli center "$INPUT" "$TEMP" --pivot bottom
+
+npx @gltf-transform/cli optimize "$TEMP" "$OUTPUT" \
   --compress meshopt \
   --texture-compress webp \
   --texture-size 1024 \
