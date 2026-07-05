@@ -8,7 +8,7 @@
     "build": "vue-tsc -b && vite build",
     "build:electron": "vue-tsc -b && vite build --mode electron",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "vue-tsc -b",
     "test": "vitest"
   },
   "dependencies": {
@@ -27,7 +27,10 @@
     "vue-router": "^4.5.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "vue-demi"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "vue-demi"
+    ]
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
