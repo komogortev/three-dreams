@@ -1,66 +1,81 @@
 # Three Dreams
 
-Vue 3 PWA built on the **@base** stack (`engine-core`, `threejs-engine`, `input`, `audio`, `player-three`, `camera-three`, `scene-builder`). **Scene 1** is the first playable level: third-person locomotion on authored **cliff** terrain (`scene01`), default **first-person** camera at **eye height** (Tab to toggle).
+A browser-based narrative exploration game prototype, written in Vue 3 and Three.js on the
+[`@base` packages](https://github.com/komogortev/vue-three-base-packages). It is a personal retelling of the
+Prodigal Son parable: a son travels back to the father waiting on the bench, through memory and dream. The
+design is in [`docs/game-design/GDD.md`](./docs/game-design/GDD.md).
 
-**Repository:** [github.com/komogortev/three-dreams](https://github.com/komogortev/three-dreams)
+**[Live demo](https://komogortev.github.io/three-dreams/)** runs in the browser. The first load downloads well over
+150 MB (character animations and scene models) and performance is still rough, so use a desktop browser and
+expect a long wait on `Loading world…`.
 
-**GitHub Pages (production build):** [komogortev.github.io/three-dreams/](https://komogortev.github.io/three-dreams/)
+> **Status:** prototype. Scenes 01 to 03 are built (house on the hill, the cliff, house on the lake); scenes 04
+> and 05 are placeholders, the HUD is a stub and there is no audio yet.
 
-Pages deploys via **Actions** (`.github/workflows/deploy-github-pages.yml`): CI checks out [vue-three-base-packages](https://github.com/komogortev/vue-three-base-packages), builds linked `@base/*` packages, then builds this app with `VITE_BASE_PATH=/three-dreams/` so assets resolve under the project path.
+## What is in it
 
-## Local layout (ecosystem checkout)
+- **Third-person and first-person play** on authored terrain and GLB scenes, with Mixamo character animation:
+  walk, run, crouch, jump, landing and swimming. Tab toggles the camera.
+- **NPCs with dialog:** walk up to a character and press E. Scene 01 has a father figure with authored lines.
+- **Phone profile menu:** the opening screen where you pick one of three phone profiles before starting a run.
+- **Rebindable controls:** keyboard bindings, four ability slots and mouse buttons, on the settings page.
+- **Scene registry:** each scene is a descriptor plus a gameplay policy under `src/scenes/`, built by
+  `@base/scene-builder`.
+- **Dev-only tools:** a scene editor and a waypoint editor, available only in the dev server.
 
-```text
-e:/Projects/
-  SHARED/packages/     # pnpm install && pnpm build — packages linked as link:../SHARED/packages/*
-  first-game/          # this repo (folder name may still be first-game locally; package name is three-dreams)
-```
+## Run it locally
 
-## Setup
+The app links the `@base/*` packages from a sibling checkout (`link:../SHARED/packages/...`), so the two
+repositories must sit side by side. Needs Node 20 or newer and pnpm 9 or newer.
 
 ```bash
-cd SHARED && pnpm install && pnpm build
-cd ../first-game && pnpm install && pnpm dev
+mkdir workspace && cd workspace
+git clone https://github.com/komogortev/vue-three-base-packages SHARED
+git clone https://github.com/komogortev/three-dreams
+cd SHARED && pnpm install && pnpm build    # builds the @base/* packages
+cd ../three-dreams && pnpm install && pnpm dev
 ```
 
-Adjust the second path if your clone lives in `three-dreams/`.
+## Routes
 
-## App routes
+| Route | What it is |
+|-------|------------|
+| `/` | Menu: choose a phone, then **Play** or **Continue**; **Settings** |
+| `/game` | The game, starting in scene 01 |
+| `/settings` | Input bindings |
+| `/editor`, `/scene-editor`, `/waypoints`, `/sandbox` | Dev tools; the production build redirects them to `/` |
 
-| Route     | Purpose |
-|-----------|---------|
-| `/`       | Menu — **Play** / **Continue** / **Settings**; **Scene editor** appears in dev only |
-| `/game`   | Scene 1 (cliff) — `ThreeModule` + `GameLogicModule` + `ThirdPersonSceneModule` (`scene01`) |
-| `/editor` | Scene editor (dev only in production builds; menu button gated by `import.meta.env.DEV`) |
+## Controls
 
-## Scene content layout
-
-Authoring lives under **`src/scenes/`**; large binaries stay under **`public/`** (Vite serves them by URL, they are not bundled).
-
-```text
-src/scenes/
-  registry.ts           # SCENE_REGISTRY — ids, labels, export symbols, descriptors (editor + tooling)
-  shared/               # cross-scene helpers (e.g. Mixamo clip URL list)
-  scene-01/index.ts     # scene01 — cliff + heightmap + scatter
-  scene-02/index.ts     # scene02 — references /scenes/scene-02/*.glb
-
-public/scenes/scene-02/
-  house_on_the_hill.glb
-```
-
-**Adding a new scene:** copy `scene-02` as a template, add assets under `public/scenes/<id>/`, register a row in **`registry.ts`**, then use **Working scene** in the editor to switch without leaving `/editor`.
-
-**Scene 2 + GLB terrain:** Locomotion samples **descriptor terrain only**, not GLB triangles. A hill modeled *inside* the GLB is visual-only for foot placement unless you add matching **`terrain.features`** (e.g. heightmap) or change how Y is resolved (mesh pick — future work).
-
-## Documentation
-
-- [Fork roadmap (Phase 4)](./docs/roadmap.md) — current state, checklist, next gameplay milestone, editor heatmap research note
-- [Game state system](./docs/game-state-system.md) — session phases, event bus, save key `first-game-save-v1`, Continue flow
+W A S D to move, Shift to sprint, Ctrl to crouch, Space to jump, Tab to switch camera, E to talk. In first
+person, click the canvas to capture the mouse and Esc to release it. Bindings can be changed on the settings page.
 
 ## Scripts
 
-| Command          | Description        |
-|------------------|--------------------|
-| `pnpm dev`       | Vite dev server    |
-| `pnpm build`     | Production build   |
-| `pnpm typecheck` | `vue-tsc --noEmit` |
+| Command | What it does |
+|--------|--------------|
+| `pnpm dev` | Vite dev server |
+| `pnpm build` | Type-check (`vue-tsc -b`) and production build |
+| `pnpm preview` | Preview the production build |
+| `pnpm typecheck` | `vue-tsc -b` |
+
+## Deployment
+
+A GitHub Actions workflow (`.github/workflows/deploy-github-pages.yml`) checks out `vue-three-base-packages`,
+builds the linked packages, then builds this app with `VITE_BASE_PATH=/three-dreams/` and publishes it to
+GitHub Pages.
+
+## Project docs
+
+- [Game design document](./docs/game-design/GDD.md) and per-scene notes in `docs/game-design/scenes/`
+- [Roadmap](./docs/roadmap.md)
+- [Game state system](./docs/game-state-system.md): session phases, event bus, save and Continue flow
+
+## License
+
+The source code is [MIT](./LICENSE) licensed. Third-party assets bundled under `public/` (including the Mixamo
+character and animations, the NPC and scene models, and the Draco decoder) keep their own terms and are not
+covered by it.
+
+The scene and NPC models are sourced from Sketchfab and are planned to be replaced with documented, authored
+assets.
