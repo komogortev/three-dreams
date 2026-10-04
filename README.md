@@ -5,6 +5,10 @@ A browser-based narrative exploration game prototype, written in Vue 3 and Three
 Prodigal Son parable: a son travels back to the father waiting on the bench, through memory and dream. The
 design is in [`docs/game-design/GDD.md`](./docs/game-design/GDD.md).
 
+**[Live demo](https://komogortev.github.io/three-dreams/)** runs in the browser. The first load downloads well over
+150 MB (character animations and scene models) and performance is still rough, so use a desktop browser and
+expect a long wait on `Loading world…`.
+
 > **Status:** prototype. Scenes 01 to 03 are built (house on the hill, the cliff, house on the lake); scenes 04
 > and 05 are placeholders, the HUD is a stub and there is no audio yet.
 
@@ -72,3 +76,6 @@ GitHub Pages.
 The source code is [MIT](./LICENSE) licensed. Third-party assets bundled under `public/` (including the Mixamo
 character and animations, the NPC and scene models, and the Draco decoder) keep their own terms and are not
 covered by it.
+
+The scene and NPC models are sourced from Sketchfab and are planned to be replaced with documented, authored
+assets.
