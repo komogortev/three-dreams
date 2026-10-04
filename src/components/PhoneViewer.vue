@@ -30,6 +30,8 @@ let camera: THREE.PerspectiveCamera | null = null
 let modelRoot: THREE.Group | null = null
 let rafId = 0
 let ro: ResizeObserver | null = null
+/** Bumped on every teardown so a GLB that finishes loading afterwards is ignored. */
+let loadGen = 0
 
 // ── Loader (shared instance, stateless) ──────────────────────────────────────
 
@@ -66,9 +68,12 @@ function buildScene(canvas: HTMLCanvasElement): void {
   scene.add(accent)
 
   // Load GLB
+  const gen = loadGen
   gltfLoader.load(
     resolvePublicUrl(props.glbUrl),
     (gltf) => {
+      // The viewer was torn down (unmount or glbUrl change) while the file was loading.
+      if (gen !== loadGen || !scene || !camera) return
       const model = gltf.scene
       // Center model — robust to Blender origin offset
       const box = new THREE.Box3().setFromObject(model)
@@ -123,6 +128,7 @@ function tick(): void {
 }
 
 function teardown(): void {
+  loadGen++
   cancelAnimationFrame(rafId)
   ro?.disconnect()
   renderer?.dispose()
