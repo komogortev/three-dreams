@@ -12,6 +12,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
+import { resolvePublicUrl } from '@/utils/resolvePublicUrl'
 
 const props = defineProps<{
   glbUrl: string
@@ -66,7 +67,7 @@ function buildScene(canvas: HTMLCanvasElement): void {
 
   // Load GLB
   gltfLoader.load(
-    props.glbUrl,
+    resolvePublicUrl(props.glbUrl),
     (gltf) => {
       const model = gltf.scene
       // Center model — robust to Blender origin offset
